@@ -31,15 +31,23 @@ function ImageFilesOnlyArray (arr) {
 #@ File(label="Experiment folder", value = "C:/", style="directory") exfolder
 #@ Float (label="PHANTAST Sigma", value = 4, style="spinner") sigmaint
 #@ Float (label="PHANTAST Epsilon", value = 0.5, style="spinner") epsiint
+#@ Integer (label="Select Fluorescent Channel", value = 1, style="slider", min = 1, max = 2) flochannel
 
 
 run("Fresh Start"); //ALWAYS INCLUDE
 setBatchMode(true); //"TRUE" FOR FASTER PROCESSING
 
 
+//Variable for selecting BF channel based on user input for the fluorescence channel
+if(flochannel == 1) {
+bfchannel = 2;
+}else {
+bfchannel = 1;
+ }
+
+
 //Cycle through all experiments in folder
-filelist = getFileList(exfolder) //Get names of all experiment folders in the main folder
-print(lengthOf(exfolder));
+filelist = getFileList(exfolder); //Get names of all experiment folders in the main folder
 for (i = 0; i < lengthOf(filelist); i++) {
 	run("Fresh Start");
 	close("*");
@@ -56,20 +64,20 @@ for (i = 0; i < lengthOf(filelist); i++) {
 	File.openSequence(exfolder + File.separator + filelist[i]); //Import image sequence
 	rename("expt"); 
 	run("Deinterleave", "how=2"); //Split bf and fluoresence stacks
-	selectImage("expt #2");
+	selectImage("expt #"+bfchannel);
 	run("32-bit"); //Convert to 32-bit image for PHANTAST
 	run("Image Sequence... ", "dir="+bf_dir+" format=TIFF name=BF");
-	selectImage("expt #1");
-	run("BaSiC ", "processing_stack=[expt #1] flat-field=None dark-field=None shading_estimation=[Estimate shading profiles] shading_model=[Estimate flat-field only (ignore dark-field)] setting_regularisationparametes=Manual temporal_drift=[Replace with zero] correction_options=[Compute shading and correct images] lambda_flat=5 lambda_dark=0.50");  //Run BaSic correction on fluoresence intensity data
+	selectImage("expt #"+flochannel);
+	run("BaSiC ", "processing_stack=[expt #"+flochannel+"] flat-field=None dark-field=None shading_estimation=[Estimate shading profiles] shading_model=[Estimate flat-field only (ignore dark-field)] setting_regularisationparametes=Manual temporal_drift=[Replace with zero] correction_options=[Compute shading and correct images] lambda_flat=5 lambda_dark=0.50");  //Run BaSic correction on fluoresence intensity data
 	//Close all unimportant windows - - - - - - - - - -
 	selectImage("Basefluor");
 	close();
-	selectImage("Flat-field:expt #1");
+	selectImage("Flat-field:expt #"+flochannel);
 	close();
-	selectImage("expt #1");
+	selectImage("expt #"+flochannel);
 	close();
 	//- - - - - - - - - - - - - - - - - - - - - - - - - - 
-	selectImage("Corrected:expt #1");
+	selectImage("Corrected:expt #"+flochannel);
 	rename("Corrected_Flo_Image");
 	run("Add...", "value=1 stack"); //Add 1 to all pixel values as bg has been set to 0 and want to avoid multiplying by 0 later
 	save(basic_dir + File.separator + "Corrected_Flo_Image.tiff"); //Save BaSic image to folder
