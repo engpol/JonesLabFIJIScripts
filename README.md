@@ -9,6 +9,8 @@ Under the "Experiment folder" box click browse and select the folder containing 
 
 Then, select whichever Sigma and Epsilon values for PHANTAST you want the macro to use. The values Ben suggested will always be used as default if you don't want them to change.
 
+If your fluorescence channel is in channel 2 as opposed to 1 as it usually is, you can change it using the slider at the bottom.
+
 Then press ok. 
 
 Once the Macro is finished running, it will save your results to a CSV file in every experimental folder titled "Results".
