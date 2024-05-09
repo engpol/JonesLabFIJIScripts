@@ -18,8 +18,8 @@
 //Global Parameters 
 //- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - -- - - - -- -- - - - - - --
 #@ File(label="Experiment Folder", value = "C:/", style="directory") exfolder
-#@ Integer (label="Number of Timepoints", value = 16, style="spinner", min = 1, max = 100) timepoint_number
-#@ Integer (label="Number of FOVs", value = 49, style="spinner", min = 1, max = 100) FOV_number
+#@ Integer (label="Number of Timepoints", value = 16, style="spinner", min = 1) timepoint_number
+#@ Integer (label="Number of FOVs", value = 49, style="spinner", min = 1, max = 99) FOV_number
 
 run("Fresh Start"); //ALWAYS INCLUDE
 setBatchMode(true); //"TRUE" FOR FASTER PROCESSING
