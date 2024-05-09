@@ -38,4 +38,7 @@ Once it has finished running, in the experiment folder all the individual FOVs w
 2. By default, this Macro does not perform any filtering on the ROIs (such as for ROI size/presence of control peak etc.) so as to not generate data destructively to save you time having to re-run the macro again. So, YOU WILL HAVE TO FILTER THE RESULTS YOURSELF IN GRAPHPAD/R/WHATEVER SOFTWARE YOU DO ANALYSIS IN. You can add these filters directly into this macro, however this will require a bit of fudging the code so either do this yourself and committ the updated version here (I've added an idea by which this could be coded in the comments), or let me know if this is something you want and I'll find the time to write this myself. If you update the code yourself please update this README.md file to let people know. 
 
 
+<strong><h2>Stardist Test Macro</strong></h2>
+
+Simple macro which has to be ran on a live cell fluoresence intensity time series from a single FOV. Re-runs StarDist using 20 different values for ProbThreshold, and saves them as an imagestack in a folder called "STARDIST_OUTPUT" so that you can see which values give the best result for your microscopy data. If you want to use the "Live Cell Imaging Macro" on your own microscopy data, at different magnifications/LED power settings, you might have to use this to play around to see which settings work best.
 
