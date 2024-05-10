@@ -3,6 +3,12 @@ A place to store and update any and all macros used by the Jones Lab in microsco
 
 By default, macros will run in batch mode, meaning ImageJ will not open any images it is doing operations on. Don't worry they are still working. If for some reason, however, you want to see the process happen you'll have to turn batch mode off. To do so, you'll have to change setBatchMode (found towards the top of all macros) to false
 
+You will need some additional ImageJ plugins to run these macros. To download them, open up Fiji/ImageJ then click "Help" -> "Update" -> "Manage Update Sites" -> tick the plugins you want to download -> "Apply and Close". You will need to restart Fiji/ImageJ for the plugins to load. The plugins you need are as follows:
+
+1. BaSiC
+2. CSBDeep
+3. StarDist
+
 <strong><h2>Receptor_Expression Macro</strong></h2>
 
 Open the macro within ImageJ/Fiji.
