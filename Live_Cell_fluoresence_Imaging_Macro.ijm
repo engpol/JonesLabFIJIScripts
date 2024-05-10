@@ -23,7 +23,7 @@
 
 run("Fresh Start"); //ALWAYS INCLUDE
 setBatchMode(true); //"TRUE" FOR FASTER PROCESSING
-run("Set Measurements...", "area mean limit display redirect=None decimal=2"); //Having the right measurements for collecting data - change here if you want to collect any more data
+run("Set Measurements...", "area mean display redirect=None decimal=2"); //Having the right measurements for collecting data - change here if you want to collect any more data
 
 //- - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - -- - - -- -- - - - - - -- -- - - - - - -- -- - -
 
