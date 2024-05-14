@@ -33,6 +33,8 @@ Under the "Experiment folder" box click browse and select the folder containing 
 
 Select the number of FOVs (i.e. if you created a 7x7 grid, it would be 49 - For the now the max number of FOVs it accepts is 99, please let me know if you need more than this for some reason), and the number of timepoints.
 
+If you would like to include SIFT drift correction, tick the box at the bottom. I've found running drift correction on experiments which have little to no drift makes the output worse, so I would only tick this if you have to.
+
 Press Run.
 
 Once it has finished running, in the experiment folder all the individual FOVs will be found in the "Individual_FOV" folder, ROIs for the segmented neurons will be in the "StarDistROI" folder, and the fluorescence intensity time series values for the different neurons will be in the "Results" folder. 
