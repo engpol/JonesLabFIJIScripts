@@ -18,8 +18,9 @@
 //Global Parameters 
 //- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - -- - - - -- -- - - - - - --
 #@ File(label="Experiment Folder", value = "C:/", style="directory") exfolder
-#@ Integer (label="Number of Timepoints", value = 16, style="spinner", min = 1) timepoint_number
+#@ Integer (label="Number of Timepoints", value = 16, style="spinner", min = 1, max = 1000) timepoint_number
 #@ Integer (label="Number of FOVs", value = 49, style="spinner", min = 1, max = 99) FOV_number
+#@ boolean (label = "Drift Present?") Drift_check
 
 run("Fresh Start"); //ALWAYS INCLUDE
 setBatchMode(true); //"TRUE" FOR FASTER PROCESSING
@@ -106,9 +107,19 @@ File.mkdir(exfolder + File.separator + "/StarDistROI");
 
 for (i = 0; i < FOV_number; i++) {
     File.openSequence(exfolder + File.separator + "/Individual_FOV" + File.separator + "FOV_Number_"+(i+1)+"","step=1");
-	//run("Duplicate...", "title=TEST duplicate range="+timepoint_number); //Take the last image of the experiment to run the StarDist model on, if for some reason the brightest image isnt the final frame, then idk but you'll have to change this perhaps add a parameter specifying the timpoint of maximal fluorescence. Or alternatively add a final frame of maximal excitation or something like that? - Ben suggested using a Max Intensity Projection - GREAT IDEA IMPLEMENT ONCE CONFIRMED VERSION ONE IS EFFECTIVE 
-    run("Z Project...", "projection=[Max Intensity]"); //Perform max intensity projecction to run the StarDist macro on, to correct for any slight drift that might have occured
+    if (Drift_check == true) {
+	run("Linear Stack Alignment with SIFT", "initial_gaussian_blur=1.60 steps_per_scale_octave=3 minimum_image_size=64 maximum_image_size=1024 feature_descriptor_size=10 feature_descriptor_orientation_bins=8 closest/next_closest_ratio=0.92 maximal_alignment_error=25 inlier_ratio=0.05 expected_transformation=Translation interpolate");
+    //selectImage("Aligned 12 of 12");
+    selectImage("Aligned "+timepoint_number + " of " + timepoint_number);
+    }
+    run("Z Project...", "projection=[Max Intensity]");//Perform max intensity projecction to run the StarDist macro on, to correct for any slight drift that might have occured
+    if (Drift_check == true) {
+    	selectImage("MAX_Aligned "+timepoint_number + " of " + timepoint_number);
+    }
+    else {
+
     selectImage("MAX_FOV_Number_"+(i+1)); //select max intensity projection image
+    }
     rename("TEST"); //rename to common name cause cba to change code below - targeted by StarDist
     run("Command From Macro", "command=[de.csbdresden.stardist.StarDist2D], args=['input':'TEST', 'modelChoice':'Versatile (fluorescent nuclei)', 'normalizeInput':'true', 'percentileBottom':'0.8', 'percentileTop':'99.60000000000001', 'probThresh':'0.45', 'nmsThresh':'0.05', 'outputType':'ROI Manager', 'nTiles':'1', 'excludeBoundary':'2', 'roiPosition':'Automatic', 'verbose':'false', 'showCsbdeepProgress':'false', 'showProbAndDist':'false'], process=[false]");
 	to_be_deleted = newArray(); //Make an empty array, to which will be added ROIS which don't pass the filter requirements
