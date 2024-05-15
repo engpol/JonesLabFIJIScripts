@@ -23,6 +23,10 @@ Then press ok.
 
 Once the Macro is finished running, it will save your results to a CSV file in every experimental folder titled "Results".
 
+<strong><h2>MESNA Macro</strong></h2>
+
+This macro is for analysing MESNA experiments (i.e. where you want to see difference in fluorescence intensity of cell containing regions before and after administration of some condition. The only key difference here is to select the order of channels. This macro again expects a single image stack. I've had quite a lot of issue with memory leak writing this macro, which I think is caused by running BaSiC on an interleaved stack possibly? I don't what else could have caused it. 
+
 <strong><h2>Live Cell Imaging Macro</strong></h2>
 
 This Macro is for analysing live cell imaging experiments looking at quantifying fluoresence intensity from the cell soma - e.g. Calcium/cAMP(CADDIS) imaging. For it to work off the bat, it expectes a timeseries of N x N grid of fluorescent images. Also, this macro is run on a folder containing single experiment, unlike the receptor expression macro I've written above, so you'll need to run it as a batch process to run it on several experiments. Going forward, I think this makes more sense as it will save shuffling experiments around folders in case you only want to analyse one experiment.
