@@ -99,7 +99,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
 	run("Divide...", "value=255 stack"); //Divide by 255 so cell containing regions are 1 and background is 0. Now is a true mask of cell regions
 	open(basic_dir + File.separator + "Corrected_Flo_Image.tiff"); //Open background corrected fluoresence data
 	imageCalculator("Multiply create stack", "BaSic_Image"+File.separator+"Corrected_Flo_Image.tiff","PHANTAST"); //Multiply Fluoresence stack by mask so only fluoresence from cell containing regions is included
-	selectImage("BaSic_Image"+File.separator+"Corrected_Flo_Image.tiff"); //Select output of multiplication
+	selectImage("Result of BaSic_Image"+File.separator+"Corrected_Flo_Image.tiff"); //Select output of multiplication
 	run("Enhance Contrast", "saturated=0.35"); //? - ask ben, i guess just for maximising bright regions
 	setAutoThreshold("Default dark"); //Visualisation?
 	setThreshold(1, 65535, "raw"); 
