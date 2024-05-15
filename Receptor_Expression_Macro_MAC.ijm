@@ -30,7 +30,7 @@ function ImageFilesOnlyArray (arr) {
 //Parameters 
 #@ File(label="Experiment folder", value = "C:/", style="directory") exfolder
 #@ Float (label="PHANTAST Sigma", value = 4, style="spinner") sigmaint
-#@ Float (label="PHANTAST Epsilon", value = 0.5, style="spinner") epsiint
+#@ Float (label="PHANTAST Epsilon", value = 0.05, style="spinner") epsiint
 #@ Integer (label="Select Fluorescent Channel", value = 1, style="slider", min = 1, max = 2) flochannel
 
 
