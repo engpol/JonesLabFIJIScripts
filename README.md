@@ -9,6 +9,39 @@ You will need some additional ImageJ plugins to run these macros. To download th
 2. CSBDeep
 3. StarDist
 
+
+<strong><h2>96-Well-Plate_Live_Cell Macro</strong></h2>
+
+This one is a little bit complicated, and I'm afraid will require you to download the <a href="https://cran.rstudio.com/">R programming language</a> along with <a href="https://posit.co/download/rstudio-desktop/">RStudio</a>. This shouldn't be too hard, and there are plenty of YouTube tutorials online for every type of OS. 
+
+Apologies for this, for some reason although ImageJ macro in theory supports R scripts, I think this would require everyone to redownload a special release of ImageJ (Bio7) or R itself anyway (Rserve), and as I'm not too familiar with Python (which seems to have much greaater support in ImageJ) this might have to do for now. In the future I might re-write this so everything works from within ImageJ, which would be nice.
+
+After you have succesfully downloaded R and RStudio onto your computer;
+
+Download the "96_Well_Plate_Live_Cell_Fluoresence_Imaging_Macro.ijm" and "For_Well_Analysis_Macro.R".
+
+Open the "96_Well_Plate..." ImageJ macro within ImageJ/Fiji (Make sure you have the required plugins installed as outlined on the top of this README)
+
+Select your experiment folder (folder containing the image stack), and supply information regarding your experiment (Number of wells, timepoints, if you want to correct for drift etc. etc.)
+
+<b>VERY IMPORTANT</b> - If your experiment only has one timepoint, please untick the "Multiple timepoints" box and set your timepoints to 2 (This won't affect your final data, it's just important for the code to work properly)
+
+After all information fields have been correctly filled, press run. Please give it time, for very large experiments it can take around 5ish minutes to finish running, make sure your laptop doesn't go to sleep.
+
+After the macro is finished running, you should find two folders in your experimental folder "Well Averages" and "Individual Wells" (The first time you test this macro out, I would recommend checking the number of files/folders within matches your number of wells, as a sanity check and to make the macro has worked as intended)
+
+Now open up the "For_Well_Analysis_Macro.R" script in RStudio
+
+Press Ctrl + Shift + Enter
+
+A pop-up menu should show up asking you to select a folder
+
+Select your experiment folder (the same one you selected for the ImageJ macro), and your code should finish running basically instantly
+
+In your experiment folder, you should find a file called "Results_Conc.csv" which will have your final results - This should already be formatted into 3 columns (Well ID, Timepoint, and the average intensity for the well), ready for you to import into GraphPad prism and plot/analyse. If you would like the raw data for each well+FOV instead of the averages for each well instead, you should find a second csv called "Results_Conc_No_Average.csv", so simply use that one instead.
+
+That should be everything! Please let me know if you would like me to implement any further changes to the Macro, you have any problems following this guide along!
+
 <strong><h2>Receptor_Expression Macro</strong></h2>
 
 Open the macro within ImageJ/Fiji.
