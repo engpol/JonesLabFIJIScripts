@@ -12,6 +12,8 @@ You will need some additional ImageJ plugins to run these macros. To download th
 
 <strong><h2>96-Well-Plate_Live_Cell Macro</strong></h2>
 
+This is a general purpose macro, and can in theory be used for the vast majority of imaging experiments performed in 96-Well plates. Please read below for how to use. 
+
 This one is a little bit complicated, and I'm afraid will require you to download the <a href="https://cran.rstudio.com/">R programming language</a> along with <a href="https://posit.co/download/rstudio-desktop/">RStudio</a>. This shouldn't be too hard, and there are plenty of YouTube tutorials online for every type of OS. 
 
 Apologies for this, for some reason although ImageJ macro in theory supports R scripts, I think this would require everyone to redownload a special release of ImageJ (Bio7) or R itself anyway (Rserve), and as I'm not too familiar with Python (which seems to have much greaater support in ImageJ) this might have to do for now. In the future I might re-write this so everything works from within ImageJ, which would be nice.
@@ -22,13 +24,17 @@ Download the "96_Well_Plate_Live_Cell_Fluoresence_Imaging_Macro.ijm" and "For_We
 
 Open the "96_Well_Plate..." ImageJ macro within ImageJ/Fiji (Make sure you have the required plugins installed as outlined on the top of this README)
 
-Select your experiment folder (folder containing the image stack), and supply information regarding your experiment (Number of wells, timepoints, if you want to correct for drift etc. etc.)
+Select your experiment folder (folder containing the image stack), and supply information regarding your experiment (Number of wells, timepoints, if you want to correct for drift etc. etc. -  If your experiment only has one channel, please untick the "Use Independent Mask for each Channel" box). 
 
-<b>VERY IMPORTANT</b> - If your experiment only has one timepoint, please untick the "Multiple timepoints" box and set your timepoints to 2 (This won't affect your final data, it's just important for the code to work properly)
+After this, the Macro will ask you to name the channels from your experiments. (To help you, the macro will open up an example image from each channel)
+
+<b>VERY IMPORTANT</b> - If one of your channels is brightfield, please ensure you name it "Brightfield" - spelled correctly in full.
+
+Provided you have left the "Indepent Mask" box unchecked, the Macro will ask you which Channel you would like to use as a "Mask" - i.e. which channel will be used to segment the cell containing regions. If you have selected Brightfield as your mask, the Macro will use Phantast, otherwise StarDist will be used instead.
 
 After all information fields have been correctly filled, press run. Please give it time, for very large experiments it can take around 5ish minutes to finish running, make sure your laptop doesn't go to sleep.
 
-After the macro is finished running, you should find two folders in your experimental folder "Well Averages" and "Individual Wells" (The first time you test this macro out, I would recommend checking the number of files/folders within matches your number of wells, as a sanity check and to make the macro has worked as intended)
+After the macro is finished running, you should find several folders in your experimental folder. If you have multiple channels, you should see a folder for each channel, inside of which you will find two more folders; "Well Averages" and "Individual Wells". (The first time you test this macro out, I would recommend checking the number of files/folders within matches your number of wells, as a sanity check and to make the macro has worked as intended).
 
 Now open up the "For_Well_Analysis_Macro.R" script in RStudio
 
@@ -38,7 +44,7 @@ A pop-up menu should show up asking you to select a folder
 
 Select your experiment folder (the same one you selected for the ImageJ macro), and your code should finish running basically instantly
 
-In your experiment folder, you should find a file called "Results_Conc.csv" which will have your final results - This should already be formatted into 3 columns (Well ID, Timepoint, and the average intensity for the well), ready for you to import into GraphPad prism and plot/analyse. If you would like the raw data for each well+FOV instead of the averages for each well instead, you should find a second csv called "Results_Conc_No_Average.csv", so simply use that one instead.
+In your experiment folder, you should find a file called "Results_Conc.csv" which will have your final results - This should already be formatted into 4 columns (Well ID, Timepoint, average intensity for the well, and the imaging Channel), ready for you to import into GraphPad prism and plot/analyse. If you would like the un-averaged data for each well+FOV instead of the averages for each well instead, you should find a second csv called "Results_Conc_No_Average.csv", so simply use that one instead.
 
 That should be everything! Please let me know if you would like me to implement any further changes to the Macro, you have any problems following this guide along!
 
