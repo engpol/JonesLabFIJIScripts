@@ -6,11 +6,9 @@
 
 exfolder <- tcltk::tk_choose.dir(default = "~/")
 
-exfolder_ext <- paste(exfolder, "/Well_Averages", sep = "")
-
 c_csv_extracted_data <- function() {
   
-  list_of_extracted_csv <- list.files(path = exfolder_ext, pattern ="Well_Number_\\d+.csv", full.names = TRUE, recursive = TRUE) #Fetch all "Results_Conc.csv" files from the parent directory of all experiments
+  list_of_extracted_csv <- list.files(path = exfolder, pattern ="Well_Number_\\d+.csv", full.names = TRUE, recursive = TRUE) #Fetch all "Results_Conc.csv" files from the parent directory of all experiments
   
   combined_data <- read.csv(list_of_extracted_csv[1]) #Read first csv file in empty array to save making empty dataframe of right dimensions
   
@@ -27,20 +25,21 @@ c_csv_extracted_data <- function() {
   
   unique_data <- combined_data[!duplicated(combined_data$Label), ]
   
-  distinct_data <- subset(unique_data, select = c('Well_number', 'Slice','Mean'))  
+  distinct_data <- subset(unique_data, select = c('Well_number', 'Slice','Mean','Channel_Name'))  
   
   pred <- function(subset_df){    
     df <- data.frame(Well_number = subset_df$Well_number[[1]], 
                      Slice = subset_df$Slice[[1]],
+                     Channel_Name = subset_df$Channel_Name[[1]],
                      Average_Intensity = mean(subset_df$Mean)
     )                      
     return(df)
   }
   
-  averaged_data_list <- by(distinct_data, list(unique_data$Well_number,unique_data$Slice), pred)
+  averaged_data_list <- by(distinct_data, list(unique_data$Well_number,unique_data$Slice,unique_data$Channel_Name), pred)
   averaged_data <- do.call(rbind, averaged_data_list)
   
-  averaged_data <- averaged_data[order(averaged_data$Well_number), ]
+  averaged_data <- averaged_data[order(averaged_data$Channel_Name,averaged_data$Well_number), ]
   
   return(averaged_data)
   
@@ -48,7 +47,7 @@ c_csv_extracted_data <- function() {
 
 c_csv_extracted_data_no_average <- function() {
   
-  list_of_extracted_csv <- list.files(path = exfolder_ext, pattern ="Well_Number_\\d+.csv", full.names = TRUE, recursive = TRUE) #Fetch all "Results_Conc.csv" files from the parent directory of all experiments
+  list_of_extracted_csv <- list.files(path = exfolder, pattern ="Well_Number_\\d+.csv", full.names = TRUE, recursive = TRUE) #Fetch all "Results_Conc.csv" files from the parent directory of all experiments
   
   combined_data <- read.csv(list_of_extracted_csv[1]) #Read first csv file in empty array to save making empty dataframe of right dimensions
   
@@ -65,18 +64,18 @@ c_csv_extracted_data_no_average <- function() {
   
   unique_data <- combined_data[!duplicated(combined_data$Label), ]
   
-  distinct_data <- subset(unique_data, select = c('Well_number', 'Slice','Mean'))  
+  distinct_data <- subset(unique_data, select = c('Well_number', 'Slice','Mean', 'Channel_Name'))  
   
   return(distinct_data)
   
 } #Function to loop and append through all "Well_Number_.csv" files in parent directory, add well labels, AND  and take averages for each slice/well
 
-my_data <- c_csv_extracted_data()
+my_data <- c_csv_extracted_data_no_average()
 
 my_data_no_average <- c_csv_extracted_data_no_average()
 
 write.csv(my_data , paste(exfolder, "/Results_Conc.csv", sep = ""), row.names = FALSE)
 
-write.csv(my_data , paste(exfolder, "/Results_Conc_No_Average.csv", sep = ""), row.names = FALSE)
+write.csv(my_data_no_average , paste(exfolder, "/Results_Conc_No_Average.csv", sep = ""), row.names = FALSE)
 
 
