@@ -19,12 +19,13 @@ c_csv_extracted_data <- function() {
     combined_data <- rbind(combined_data, temp_data)
   }
   
-  combined_data <- transform(combined_data, Well_number = sapply(regmatches(Label, regexec("[a-zA-Z]\\d+-Site", Label)), "[", 1))
+  combined_data <- transform(combined_data, Well_number = sapply(regmatches(Label, regexec("MMStack_[a-zA-Z]\\d+", Label)), "[", 1))
   
   combined_data <- transform(combined_data, Well_number = sapply(regmatches(Well_number, regexec("[a-zA-Z]\\d+", Well_number)), "[", 1))
+  combined_data <- transform(combined_data, Label_channel = paste(Label, Channel_Name))
   
-  unique_data <- combined_data[!duplicated(combined_data$Label), ]
-  
+  unique_data <- combined_data[!duplicated(combined_data$Label_channel), ]
+
   distinct_data <- subset(unique_data, select = c('Well_number', 'Slice','Mean','Channel_Name'))  
   
   pred <- function(subset_df){    
@@ -58,11 +59,13 @@ c_csv_extracted_data_no_average <- function() {
     combined_data <- rbind(combined_data, temp_data)
   }
   
-  combined_data <- transform(combined_data, Well_number = sapply(regmatches(Label, regexec("[a-zA-Z]\\d+-Site", Label)), "[", 1))
+  combined_data <- transform(combined_data, Well_number = sapply(regmatches(Label, regexec("MMStack_[a-zA-Z]\\d+", Label)), "[", 1))
   
   combined_data <- transform(combined_data, Well_number = sapply(regmatches(Well_number, regexec("[a-zA-Z]\\d+", Well_number)), "[", 1))
   
-  unique_data <- combined_data[!duplicated(combined_data$Label), ]
+  combined_data <- transform(combined_data, Label_channel = paste(Label, Channel_Name))
+  
+  unique_data <- combined_data[!duplicated(combined_data$Label_channel), ]
   
   distinct_data <- subset(unique_data, select = c('Well_number', 'Slice','Mean', 'Channel_Name'))  
   
@@ -70,12 +73,11 @@ c_csv_extracted_data_no_average <- function() {
   
 } #Function to loop and append through all "Well_Number_.csv" files in parent directory, add well labels, AND  and take averages for each slice/well
 
-my_data <- c_csv_extracted_data_no_average()
+my_data <- c_csv_extracted_data()
 
 my_data_no_average <- c_csv_extracted_data_no_average()
 
 write.csv(my_data , paste(exfolder, "/Results_Conc.csv", sep = ""), row.names = FALSE)
 
 write.csv(my_data_no_average , paste(exfolder, "/Results_Conc_No_Average.csv", sep = ""), row.names = FALSE)
-
 
