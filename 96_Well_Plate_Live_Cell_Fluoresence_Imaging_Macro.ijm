@@ -316,12 +316,15 @@ File.mkdir(exfolder + File.separator + "Well_Averages"+"");
 for (i = 0; i < well_number; i++) {
    for (j = 0; j < FOV_number; j++) {
    	if (Channel_number > 1) {
+   	temp_file_Well_FOV_delete = getFileList(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"");
    	File.mkdir(exfolder + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+""); 
    	File.mkdir(exfolder + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"");  
    	File.openSequence(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"","step=1");
    	}else {
+	    temp_file_Well_FOV_delete = getFileList(exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"");
 	    File.openSequence(exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"","step=1");
    	}
+  
    	if (Drift_check == true) {
    		if (channel_name_string == "Brightfield") {
    			run("Invert", "stack"); //This is so areas of interest are brighter in brightfield images - will make SIFT work slightly better - idea came from ImageJ forums
@@ -418,6 +421,13 @@ for (i = 0; i < well_number; i++) {
      }
       
 close("*");
+ 	for (FOVfiledelete = 0; FOVfiledelete < lengthOf(temp_file_Well_FOV_delete); FOVfiledelete++) {
+   		if (Channel_number > 1) {
+   	File.delete(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+ File.separator + temp_file_Well_FOV_delete[FOVfiledelete]);
+   	}else {
+   		File.delete(exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+File.separator + temp_file_Well_FOV_delete[FOVfiledelete]);
+   	}	
+   	}
    } 
    
  if (channel_name_string != "Brightfield") {
@@ -438,6 +448,14 @@ saveAs("Results", exfolder + File.separator + "Well_Averages" + File.separator +
  }
 close("*");
 }
+if(Channel_number > 1){
+Channel_folder_file_list = getFileList(exfolder + File.separator + channel_name_string);
+temp_files_to_delete =  ImageFilesOnlyArray(Channel_folder_file_list);
+for (tempfile = 0; tempfile < lengthOf(temp_files_to_delete); tempfile++) {
+File.delete(exfolder + File.separator + channel_name_string + File.separator + temp_files_to_delete[tempfile]);
 }
+}
+}
+
 
 print("MACRO FINISHED SUCCESFULLY - PLEASE USE R TO CONCATENTATE CSV FILES");
