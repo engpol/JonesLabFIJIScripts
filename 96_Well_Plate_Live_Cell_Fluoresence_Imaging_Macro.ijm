@@ -35,7 +35,7 @@ timepoint_check = false;
 real_timepoint_number = 2;
 }else{
 timepoint_check = true;
-real_timepoint_number = timepoint_number
+real_timepoint_number = timepoint_number;
 }
 //- - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - -- - - -- -- - - - - - -- -- - - - - - -- -- - -
 //- - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - -- - - -- -- - - - - - -- -- - - - - - -- -- - -
