@@ -181,7 +181,7 @@ print("Working on "+ channel_name_string + " channel");
 File.openSequence(exfolder + File.separator + channel_name_string,"step=1"); //Import the Experiment Image Stack
 }else { //i.e. if Channel number = 1
 channel_name_string = chosen_mask; //CHANNELNAME table does not exist if number of channels is 1 - this throws error later in code
-File.openSequence(exfolder, "step=1")
+File.openSequence(exfolder, "step=1");
 }
 rename("expt"); //rename to call easier
 selectImage("expt"); //select image
