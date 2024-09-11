@@ -10,9 +10,11 @@ You will need some additional ImageJ plugins to run these macros. To download th
 3. StarDist
 
 
-<strong><h2>96-Well-Plate_Live_Cell Macro</strong></h2>
+<strong><h2>96-Well-Plate_Live_Cell Macro_NEW</strong></h2>
 
-This is a general purpose macro, and can in theory be used for the vast majority of imaging experiments performed in 96-Well plates. Please read below for how to use. 
+There is an old version of this Macro in the "Old_Well" folder - highly recommend you DON'T use that one and use the newer one instead. If for some reason the new ver doesn't work on your setup please just let me know, it'll probably be an easy fix. 
+
+This is a general purpose macro, and can in theory be used for the vast majority of imaging experiments performed in 96-Well plates. If you currently use any of the other macros for experiments, I'd recommend swithching to this one, as it can do the same analysis better, and can leverage the power of R for data wrangling and annotation. Please read below for how to use. 
 
 This one is a little bit complicated, and I'm afraid will require you to download the <a href="https://cran.rstudio.com/">R programming language</a> along with <a href="https://posit.co/download/rstudio-desktop/">RStudio</a>. This shouldn't be too hard, and there are plenty of YouTube tutorials online for every type of OS. 
 
@@ -28,23 +30,28 @@ Select your experiment folder (folder containing the image stack), and supply in
 
 After this, the Macro will ask you to name the channels from your experiments. (To help you, the macro will open up an example image from each channel)
 
-<b>VERY IMPORTANT</b> - If one of your channels is brightfield, please ensure you name it "Brightfield" - spelled correctly in full.
+<b>VERY IMPORTANT</b> - If one of your channels is brightfield, please ensure you name it "Brightfield" - spelled correctly in full. "BF" will not work
 
 Provided you have left the "Indepent Mask" box unchecked, the Macro will ask you which Channel you would like to use as a "Mask" - i.e. which channel will be used to segment the cell containing regions. If you have selected Brightfield as your mask, the Macro will use Phantast, otherwise StarDist will be used instead.
 
-After all information fields have been correctly filled, press run. Please give it time, for very large experiments it can take around 5ish minutes to finish running, make sure your laptop doesn't go to sleep.
+After all information fields have been correctly filled, press run. Please give it time, for very large experiments it can take around 5ish minutes to finish running, make sure your laptop/pc doesn't go to sleep.
 
-After the macro is finished running, you should find several folders in your experimental folder. If you have multiple channels, you should see a folder for each channel, inside of which you will find two more folders; "Well Averages" and "Individual Wells". (The first time you test this macro out, I would recommend checking the number of files/folders within matches your number of wells, as a sanity check and to make the macro has worked as intended).
+After the macro is finished running, you should find several folders in your experimental folder. If you have multiple channels, you should see a folder for each channel, inside of which you will find two more folders; "Well Averages" and "Individual Wells". (The first time you test this macro out, I would recommend checking the number of files/folders within matches your number of wells, as a sanity check and to make the macro has worked as intended). Don't worry if you have a few empty rows at the end of the csv/each well. this is caused by some weird looping behaviour which I cba to figure out, as it does not delete/overwrite any data and will be filtered out in R anyway.
 
 Now open up the "For_Well_Analysis_Macro.R" script in RStudio
 
+There will be some fields which you have to fill out. If want to perform any filtering of your cells, please change boolean_filter to TRUE (this is by default set to FALSE)
+
+Fill out the filters you would like to put on your data - for now this is limited to Mean and Area. If there are any other parameters which you would like analysed possible to filter, please let me know/read the comments and implement to your hearts content. If you are familiar with R hopefully it shouldn't be much of a hassle to add. If you would like to exclude any Channels from filtering please add those to the Channel Pattern setting - there is a comment explaining exactly how to add channels you would like to comment out. 
+
+Once all settings are done:
 Press Ctrl + Shift + Enter
 
 A pop-up menu should show up asking you to select a folder
 
 Select your experiment folder (the same one you selected for the ImageJ macro), and your code should finish running basically instantly
 
-In your experiment folder, you should find a file called "Results_Conc.csv" which will have your final results - This should already be formatted into 4 columns (Well ID, Timepoint, average intensity for the well, and the imaging Channel), ready for you to import into GraphPad prism and plot/analyse. If you would like the un-averaged data for each well+FOV instead of the averages for each well instead, you should find a second csv called "Results_Conc_No_Average.csv", so simply use that one instead.
+In your experiment folder, you should find a series of files which are nicely structured and labelled, ready for analysis in whatever software you would like to use!
 
 That should be everything! Please let me know if you would like me to implement any further changes to the Macro, you have any problems following this guide along!
 
