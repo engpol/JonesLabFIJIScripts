@@ -27,6 +27,7 @@
 
 run("Fresh Start"); //ALWAYS INCLUDE
 setBatchMode(false); //Leave here as false, important for choosing channels later
+setOption("ExpandableArrays",true) //only switch on before and after using the natural_sort func - don't know if it will mess with other arrays
 run("Set Measurements...", "area mean display redirect=None decimal=2"); //Having the right measurements for collecting data - change here if you want to collect any more data
 
 //Bullshittery for single timepoint -- - - - - -  - -- -- - - - - - -- -- - - - - -- -- - - - - - -- -- - - - - -- -- - - - - - -- -- - - - - -- -- - - - - - -- -- - - - - -- -- - - - - - -- -- - - - 
@@ -54,6 +55,23 @@ function ImageFilesOnlyArray (arr) {
 	arr = files;
 	arr = Array.sort(arr);
 	return arr;
+	
+	
+	
+	function natural_sort(a) { //Essentially a natural sort func for ImageJ - use in strings containing numbers - didnt end up using but useful so will leave here
+	arr2 = newArray(); //return array containing digits
+	for (i = 0; i < a.length; i++) {
+		str = a[i];
+		digits = ""; 
+		for (j = 0; j < str.length; j++) {
+			ch = str.substring(j, j+1);
+			if(!isNaN(parseInt(ch)))
+				digits += ch;
+		}
+		arr2[i] = parseInt(digits);
+	}
+	return arr2;
+}
 }
 
 //- - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - -- - - -- -- - - - - - -- -- - - - - - -- -- - -
@@ -88,7 +106,7 @@ Dialog.addChoice("Which Channel would you like to use as Mask?", Channel_label_a
 Dialog.show();
 chosen_mask = Dialog.getChoice();
 }else {
-chosen_mask = "BROKEN_IF_SEE";
+exit("Only 1 Channel - Please Untick Use Independent Masks as Channels Option and run again");
 }
 
 
@@ -108,20 +126,6 @@ if (mask_check == true || matches(chosen_mask, "Brightfield") != true ) {
 Sigma_int = 4;
 Epsilon_int = 0.05;
 }
-
-
-if(matches(chosen_mask, "Brightfield") != true || mask_check == true){
-	Dialog.create("Fluorescent Mask Detected");
-	Dialog.addMessage("Using a Fluorescent channel as mask, please choose values for StarDist:");
-	Dialog.addNumber("Probability/Score Threshold (0.00 - 1.00)", 0.6);
-	Dialog.addMessage("Higher values lead to fewer segmented objects, but will likely avoid false positives");
-	Dialog.addNumber("Overlap Threshold (0.00- 1.00)", 0.05);
-	Dialog.addMessage("Higher values allow segmented objects to overlap substantially");
-	Dialog.show();
-	Prob_int = Dialog.getNumber();
-    Overlap_int = Dialog.getNumber();
-	}
-
 
 // - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - --  - - - -- -- - - - - - --
 // CODE 
@@ -314,7 +318,7 @@ print("Images divided by well and FOV number");
 // - - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --
 // FOR EACH FOV, OPEN WELL
 //CORRECT FOR DRIFT
-//RUN STAR DIST, MAKE MASK
+//RUN STAR DIST, MAKE MASK - IF FIRST TIME, RUN ON EXAMPLE IMAGE AND IMPORT TO INSPECT IMAGES
 //MULTIPLY BY INSTENSITY
 //TAKE MEASUREMENT OF AVERAGE INSTENSITY - DO NOT REMOVE, KEEP ADDING ONTO COLUMN
 //SAVE INTO FOLDER OF EACH WELL - ONLY AFTER ALL WELLS HAVE TAKEN MEASUREMENTS - SHOULD BE EACH COLUMN COUNTS MEASUREMENTS FOR EACH TIMEPOINT
@@ -323,19 +327,105 @@ print("Images divided by well and FOV number");
 
 if (Channel_number > 1 || mask_check == true) {
 File.mkdir(exfolder + File.separator + channel_name_string + File.separator + "Well_Averages"+"");
+File.mkdir(exfolder + File.separator + channel_name_string + File.separator + "StarDist_Test"+"");
 }
 if (mask_check == false && Channel_number > 1) {
 File.mkdir(exfolder + File.separator + "MASK_OUTPUT");
 File.mkdir(exfolder + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well");
+File.mkdir(exfolder + File.separator + "StarDist_Test"+"");
 }
 if (Channel_number == 1) {
 File.mkdir(exfolder + File.separator + "Well_Averages"+"");
+File.mkdir(exfolder + File.separator + "StarDist_Test"+"");
 }
 
+//Code below is for generating an example StarDist output to decide best settings for your experiment 
+if ((matches(channel_name_string, "Brightfield") != true)) { //Dont care about brightfield settings, as will only have 1 setting anyway
+	Star_Dist_Array = newArray(0.051,0.11,0.151,0.201,0.251,0.301,0.351,0.451,0.501,0.551,0.601,0.651,0.701,0.751,0.801,0.851,0.901,0.951,1);
+   	if (mask_check == false && k==0) { //k = 0 ensures this is only run on mask channel - if only one channel is present this will be first anyway
+     if (Channel_number == 1) {
+     File.openSequence(exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");  
+     }else {
+   	  File.openSequence(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
+     }run("Z Project...", "projection=[Max Intensity]"); //find average area of cell containting regions
+	  selectImage("MAX_FOV_Number_1"+""); 
+   	  run("Duplicate...", "title=TEST duplicate"); //Dont need this but copied code across
+   	  for (i = 0; i < 19; i+=1) {
+	selectImage("TEST"); 
+	run("Command From Macro", "command=[de.csbdresden.stardist.StarDist2D], args=['input':'TEST', 'modelChoice':'Versatile (fluorescent nuclei)', 'normalizeInput':'true', 'percentileBottom':'0.8', 'percentileTop':'99.60000000000001', 'probThresh':'"+Star_Dist_Array[i]+"', 'nmsThresh':'0.05', 'outputType':'ROI Manager', 'nTiles':'1', 'excludeBoundary':'2', 'roiPosition':'Automatic', 'verbose':'false', 'showCsbdeepProgress':'false', 'showProbAndDist':'false'], process=[false]");
+	selectImage("TEST");
+	run("Duplicate...", "title=TO_SAVE duplicate"); //To save having to reimport image stack over again - this is faster
+	selectImage("TO_SAVE");
+	roiManager("deselect"); 
+	roiManager("fill"); //Fill roi regions 
+	selectImage("TO_SAVE");
+	save(exfolder + File.separator + "StarDist_Test" + File.separator +"STARDIST_THRESH_"+Star_Dist_Array[i]+"_TEST.tiff");
+	selectImage("TO_SAVE");
+	close();
+	roiManager("reset");
+	}
+	close("*");
+	sdfilelist = getFileList(exfolder + File.separator + "StarDist_Test");
+for (sdfiles = 0; sdfiles < lengthOf(sdfilelist); sdfiles++) {
+        open(exfolder + File.separator + "StarDist_Test"+File.separator+sdfilelist[sdfiles]); //open all StarDist images to save into stack - cant use import image sequence as will not keep file names
+     
+}	
+     run("Images to Stack", "name=StarDist_Output use");  //to see the image filenames
+     setBatchMode("exit and display"); //show images
+	 if (Channel_number == 1) {
+     File.openSequence(exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");  
+     }else {
+	 File.openSequence(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
+   	}
+   	
+   	}
+   	
+ if (mask_check == true) {
+ 	  File.openSequence(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
+  run("Z Project...", "projection=[Max Intensity]"); //find average area of cell containting regions
+	  selectImage("MAX_FOV_Number_1"+""); 
+   	  run("Duplicate...", "title=TEST duplicate");
+   	  for (i = 0; i < 19; i+=1) {
+	selectImage("TEST");
+	run("Command From Macro", "command=[de.csbdresden.stardist.StarDist2D], args=['input':'TEST', 'modelChoice':'Versatile (fluorescent nuclei)', 'normalizeInput':'true', 'percentileBottom':'0.8', 'percentileTop':'99.60000000000001', 'probThresh':'"+Star_Dist_Array[i]+"', 'nmsThresh':'0.05', 'outputType':'ROI Manager', 'nTiles':'1', 'excludeBoundary':'2', 'roiPosition':'Automatic', 'verbose':'false', 'showCsbdeepProgress':'false', 'showProbAndDist':'false'], process=[false]");
+	selectImage("TEST");
+	run("Duplicate...", "title=TO_SAVE duplicate");
+	selectImage("TO_SAVE");
+	roiManager("deselect");
+	roiManager("fill");
+	selectImage("TO_SAVE");
+	save(exfolder + File.separator + channel_name_string + File.separator + "StarDist_Test" + File.separator +"STARDIST_THRESH_"+Star_Dist_Array[i]+"_TEST.tiff");
+	selectImage("TO_SAVE");
+	close();
+	roiManager("reset");
+ }
+    close("*");
+    sdfilelist = getFileList(exfolder + File.separator + channel_name_string + File.separator + "StarDist_Test");
+for (sdfiles = 0; sdfiles < lengthOf(sdfilelist); sdfiles++) {
+        open(exfolder + File.separator + channel_name_string + File.separator + "StarDist_Test" +File.separator+sdfilelist[sdfiles]);     
+}
+    run("Images to Stack", "name=StarDist_Output use");  //to see the image filenames
+    setBatchMode("exit and display"); //show images
+    File.openSequence(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
+ }
+   	Dialog.createNonBlocking("Fluorescent Mask Detected");
+	Dialog.addMessage("Using a Fluorescent channel as mask, please choose values for StarDist:");
+	Dialog.addNumber("Probability/Score Threshold (0.00 - 1.00)", 0.6);
+	Dialog.addMessage("Higher values lead to fewer segmented objects, but will likely avoid false positives (unless heavily overlapping, leave this one)");
+	Dialog.addNumber("Overlap Threshold (0.00- 1.00)", 0.05);
+	Dialog.addMessage("Higher values allow segmented objects to overlap substantially");
+	Dialog.show();
+	Prob_int = Dialog.getNumber();
+    Overlap_int = Dialog.getNumber();
+ 
+   	}
+   	close("*");
+    setBatchMode(true);
 
 for (i = 0; i < well_number; i++) {
 	roi_count_empty_array = newArray(FOV_number); //For cell_counting - ffs
    for (j = 0; j < FOV_number; j++) {
+   	
    	if (Channel_number > 1) {
    		
    	temp_file_Well_FOV_delete = getFileList(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"");
@@ -400,7 +490,7 @@ for (i = 0; i < well_number; i++) {
 	    	roiManager("multi-measure measure_all one append");
 	    	}
 	    	if (rawROInumber == 0) {
-	    	makeRectangle(292, 280, 446, 454);
+	    	makeRectangle(0, 1004, 22, 20);
 	    	roiManager("add");
 	    	roiManager("multi-measure measure_all one append");	
 	    	}
@@ -421,7 +511,7 @@ for (i = 0; i < well_number; i++) {
 	    	roiManager("multi-measure measure_all one append");
 	  }
 	  if (rawROInumber == 0) { //You get errors if StarDist doesnt segment any ROIS - this creates a huge rectangle which is easy to filter out in R anyway
-	    	makeRectangle(292, 280, 446, 454);
+	    	makeRectangle(0, 1004, 22, 20);
 	    	roiManager("add");
 	    	roiManager("multi-measure measure_all one append");	
 	    	}
@@ -443,7 +533,7 @@ for (i = 0; i < well_number; i++) {
 	    	roiManager("multi-measure measure_all one append");
 	 }
 	 if (rawROInumber == 0) {
-	    	makeRectangle(292, 280, 446, 454);
+	    	makeRectangle(0, 1004, 22, 20);
 	    	roiManager("add");
 	    	roiManager("multi-measure measure_all one append");	
 	    	}
