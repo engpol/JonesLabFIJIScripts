@@ -13,7 +13,6 @@ if (any(installed_packages == FALSE)) {
 # Packages loading
 invisible(lapply(packages, library, character.only = TRUE))
 
-
 ## - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ## C H A N G E    S E T T I N G S   H E R E   B E F O R E   R U N N I N G 
 ## - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -134,9 +133,11 @@ no_dup_rows <- function(list_element) {
 filtered_list_cleaned_FINAL <- lapply(filtered_list_NA_cleaned, no_dup_rows) ##Apply above func to all channel dataframes
 
 row_wise_mean_and_area_avg <- function(list_element) {
-  list_element$FOV_intensity_sum <- rowSums(list_element[grep('^Mean', names(list_element))], na.rm = T) ##Take get an average of mean for each FOV
+  list_element$Average_Cell_Intensity <- rowMeans(list_element[grep('^Mean', names(list_element))], na.rm = T) ##Take get an average of mean for each FOV
   
-  list_element$FOV_area_sum <- rowSums(list_element[grep('^Area', names(list_element))], na.rm = T)##To get a sum of fluorescent area
+  list_element$Area_sum <- rowSums(list_element[grep('^Area', names(list_element))], na.rm = T)##To get a sum of fluorescent area
+  
+  list_element$Area_mean <- rowMeans(list_element[grep('^Area', names(list_element))], na.rm = T)##To get a sum of fluorescent area
   
   list_element <- transform(list_element, Well_ID = sapply(regmatches(Label_ID, regexec("MMStack_[a-zA-Z]\\d+", Label_ID)), "[", 1)) ##Make Well_ID more readable
   
@@ -154,9 +155,9 @@ dataframes_summary_stats <- lapply(filtered_list_cleaned_FINAL, row_wise_mean_an
 summary_stats_selected <- lapply(dataframes_summary_stats, function(df){
   read_table <- as.data.frame(df)
   if(read_table[1,]$Channel_Name != "Brightfield"){
-  df_summed <- subset(read_table, select = c('Well_ID', 'Label','FOV_intensity_sum','FOV_area_sum','Channel_Name', 'Timepoint','Filtered_ROI'))
+  df_summed <- subset(read_table, select = c('Well_ID', 'Label','Average_Cell_Intensity','Area_mean','Area_sum','Channel_Name', 'Timepoint','Filtered_ROI'))
   }else{
-    df_summed <- subset(read_table, select = c('Well_ID', 'Label','FOV_intensity_sum','FOV_area_sum','Channel_Name','Timepoint'))
+    df_summed <- subset(read_table, select = c('Well_ID', 'Label','Average_Cell_Intensity','Area_mean','Area_sum','Channel_Name','Timepoint'))
   }
   return(df_summed)
 })
@@ -165,19 +166,13 @@ summary_stats_rbind <- bind_rows(summary_stats_selected)
 
 summary_stats_rbind<- transform(summary_stats_rbind, Label = sapply(regmatches(Label, regexec("FOV_Number_\\d+", Label)), "[", 1))
 
-summary_stats_rbind <- summary_stats_rbind %>%
-  mutate(Average_Cell_Intensity = FOV_intensity_sum/Filtered_ROI,
-         Average_FOV_Intensity = FOV_intensity_sum/FOV_area_sum) %>%
-  select(-c(FOV_intensity_sum,FOV_area_sum))
-
 summary_stats_rbind_averaged <- summary_stats_rbind %>%
   mutate(Well_Label_Timepoint_Channel_Name = paste(Well_ID,Timepoint,Channel_Name, sep = "_")) %>%
   group_by(Well_Label_Timepoint_Channel_Name) %>%
   mutate(Mean_Filtered_ROI = mean(Filtered_ROI),
-         Mean_Average_Cell_Intensity = mean(Average_Cell_Intensity),
-         Mean_Average_FOV_Intensity = mean(Average_FOV_Intensity)) %>%
+         Mean_Average_Cell_Intensity = mean(Average_Cell_Intensity)) %>%
   ungroup() %>%
-  select(-c(Filtered_ROI,Average_Cell_Intensity,Average_FOV_Intensity,Well_Label_Timepoint_Channel_Name, Label)) %>%
+  select(-c(Filtered_ROI,Average_Cell_Intensity,Well_Label_Timepoint_Channel_Name, Label)) %>%
   distinct()
 
  if(any(grepl("Brightfield", summary_stats_rbind$Channel_Name))==TRUE) {
@@ -207,7 +202,7 @@ Brightfield_area_func <- function(){
 summary_stats_rbind <- Brightfield_area_func()
 
 summary_stats_rbind <- summary_stats_rbind %>%
-  mutate(Fluo_area_prop = BF_Area/FOV_area_sum) %>%
+  mutate(Fluo_area_prop = BF_Area/Area_sum) %>%
   select(-c(BF_Area))
 
 summary_stats_rbind_averaged <- summary_stats_rbind %>%
@@ -215,10 +210,9 @@ summary_stats_rbind_averaged <- summary_stats_rbind %>%
   group_by(Well_Label_Timepoint_Channel_Name) %>%
   mutate(Mean_Filtered_ROI = mean(Filtered_ROI),
          Mean_Average_Cell_Intensity = mean(Average_Cell_Intensity),
-         Mean_Average_FOV_Intensity = mean(Average_FOV_Intensity),
          Mean_Fluo_area_prop = mean(Fluo_area_prop)) %>%
   ungroup() %>%
-  select(-c(Filtered_ROI,Average_Cell_Intensity,Average_FOV_Intensity,Well_Label_Timepoint_Channel_Name, Label, Fluo_area_prop)) %>%
+  select(-c(Filtered_ROI,Average_Cell_Intensity,Well_Label_Timepoint_Channel_Name, Label, Fluo_area_prop,Area_sum,Area_mean)) %>%
   distinct()
 
  }
@@ -237,11 +231,16 @@ Raw_data_cleaned <- lapply(filtered_list_cleaned_FINAL, Raw_data_clean_up_func)
 
 rbinded_list_raw_data  <- dplyr::bind_rows(Raw_data_cleaned)
 raw_data_for_export <- rbinded_list_raw_data %>% 
-  relocate(Channel_Name,Well_ID,Label,Filtered_ROI,Timepoint, .before = Label) %>%
-  select(-c(X,Label_ID,ROI_Number))
+  relocate(Channel_Name,Well_ID,Label,Filtered_ROI,Timepoint, .before = Label) %>% ##Move Info Columns to beginning for readability
+  select(-c(X,Label_ID,ROI_Number)) ##Remove duplicate/unimportant columns
+
+raw_data_for_export_mean_only <- raw_data_for_export %>%
+  select(-c(starts_with("Area")))
 
 write.csv(summary_stats_rbind , paste(exfolder, "/Results_Conc_Cleaned_No_Average.csv", sep = ""), row.names = FALSE) ##Save anotated data as .csv file
 
 write.csv(summary_stats_rbind_averaged , paste(exfolder, "/Results_Conc_Cleaned_Averaged.csv", sep = ""), row.names = FALSE) ##Same but for averaged
 
-write.csv(raw_data_for_export , paste(exfolder, "/Raw_Data.csv", sep = ""), row.names = FALSE) ##Same but for raw data 
+write.csv(raw_data_for_export , paste(exfolder, "/Raw_Data.csv", sep = ""), row.names = FALSE)
+
+write.csv(raw_data_for_export_mean_only , paste(exfolder, "/Raw_Data_Mean_Only.csv", sep = ""), row.names = FALSE) ##For people who dont use R but want to plot average traces
