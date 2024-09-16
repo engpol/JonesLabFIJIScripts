@@ -109,7 +109,16 @@ chosen_mask = Dialog.getChoice();
 exit("Only 1 Channel - Please Untick Use Independent Masks as Channels Option and run again");
 }
 
-
+if (mask_check == false) { //Get user input on which channel should be used to create an ROI mask
+Dialog.create("Fluorescent Mask Used: Apply Gaussian Blur?");
+Dialog.addMessage("If signal in channel used as mask is non-homogenous, a gaussian blur may improve segmentation");
+Dialog.addCheckbox("Apply Gaussian Blur, before StarDist Segmentation?", false);
+Dialog.addNumber("Gaussian Blur Radius:", 1);
+Dialog.addMessage("Keep this number low(1-2), but may increase if your magnification is high");
+Dialog.show();
+Use_Gaussian = Dialog.getChoice();
+Gaussian_radius = Dialog.getNumber();
+}
 
 
 if(matches(chosen_mask, "Brightfield") == true){
@@ -247,18 +256,8 @@ testArray[0] = getMetadata("Info"); //get image label from active slice
 infoArraydouble = Array.concat(infoArraydouble, testArray); 
 }
 	
-	if (channel_name_string != "Brightfield") {
-run("Slice Keeper", "first=1 last="+FOV_number*timepoint_number*well_number+" increment="+(FOV_number*timepoint_number-1)+""); //Ionas idea, make a subset of the stack to compute the BASIC shading profile on, use on full stack after compute - saves run time. Use a smaller increment to timepoint so as to not use only the first frame from each FOV
-selectImage("expt kept stack");
-run("BaSiC ", "processing_stack=[expt kept stack] flat-field=None dark-field=None shading_estimation=[Estimate shading profiles] shading_model=[Estimate flat-field only (ignore dark-field)] setting_regularisationparametes=Manual temporal_drift=Ignore correction_options=[Compute shading only] lambda_flat=4 lambda_dark=0.50"); //Compute shading profile based on the stack subset, you will use this to generate the flat field which will then be ran on the entire experiment stack
-selectImage("Flat-field:expt kept stack");
-run("BaSiC ", "processing_stack=[expt] flat-field=[Flat-field:expt kept stack] dark-field=None shading_estimation=[Skip estimation and use predefined shading profiles] shading_model=[Estimate flat-field only (ignore dark-field)] setting_regularisationparametes=Automatic temporal_drift=[Replace with zero] correction_options=[Compute shading and correct images] lambda_flat=0.50 lambda_dark=0.50"); //Compute shading profile for entire stack
-selectImage("Corrected:expt");
-
-}
 }
 close("\\Others");
-run("Add...", "value=1 stack"); //Add 1 to all pixel values as bg has been set to 0 and want to avoid diving by 0 later when calculating dF/F0
 rename("Corrected_Flo_Image");
 selectImage("Corrected_Flo_Image");
 run("Stack Splitter", "number="+well_number); //Split image stack according to number of wells
@@ -350,6 +349,10 @@ if ((matches(channel_name_string, "Brightfield") != true)) { //Dont care about b
      }run("Z Project...", "projection=[Max Intensity]"); //find average area of cell containting regions
 	  selectImage("MAX_FOV_Number_1"+""); 
    	  run("Duplicate...", "title=TEST duplicate"); //Dont need this but copied code across
+   	  selectImage("TEST"); 
+   	  if (Use_Gaussian == true) {
+   	  run("Gaussian Blur...", "sigma="+Gaussian_radius);
+   	  }
    	  for (i = 0; i < 19; i+=1) {
 	selectImage("TEST"); 
 	run("Command From Macro", "command=[de.csbdresden.stardist.StarDist2D], args=['input':'TEST', 'modelChoice':'Versatile (fluorescent nuclei)', 'normalizeInput':'true', 'percentileBottom':'0.8', 'percentileTop':'99.60000000000001', 'probThresh':'"+Star_Dist_Array[i]+"', 'nmsThresh':'0.05', 'outputType':'ROI Manager', 'nTiles':'1', 'excludeBoundary':'2', 'roiPosition':'Automatic', 'verbose':'false', 'showCsbdeepProgress':'false', 'showProbAndDist':'false'], process=[false]");
@@ -379,12 +382,16 @@ for (sdfiles = 0; sdfiles < lengthOf(sdfilelist); sdfiles++) {
    	}
    	
    	}
-   	
+
  if (mask_check == true) {
  	  File.openSequence(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
   run("Z Project...", "projection=[Max Intensity]"); //find average area of cell containting regions
 	  selectImage("MAX_FOV_Number_1"+""); 
    	  run("Duplicate...", "title=TEST duplicate");
+   	  	  if (Use_Gaussian == true) {
+   	  selectImage("TEST"); 
+   	  run("Gaussian Blur...", "sigma="+Gaussian_radius);
+   	  }
    	  for (i = 0; i < 19; i+=1) {
 	selectImage("TEST");
 	run("Command From Macro", "command=[de.csbdresden.stardist.StarDist2D], args=['input':'TEST', 'modelChoice':'Versatile (fluorescent nuclei)', 'normalizeInput':'true', 'percentileBottom':'0.8', 'percentileTop':'99.60000000000001', 'probThresh':'"+Star_Dist_Array[i]+"', 'nmsThresh':'0.05', 'outputType':'ROI Manager', 'nTiles':'1', 'excludeBoundary':'2', 'roiPosition':'Automatic', 'verbose':'false', 'showCsbdeepProgress':'false', 'showProbAndDist':'false'], process=[false]");
@@ -420,6 +427,9 @@ for (sdfiles = 0; sdfiles < lengthOf(sdfilelist); sdfiles++) {
  
    	}
    	close("*");
+   	
+   	
+ //End of StarDist choice game - - - - -
     setBatchMode(true);
 
 for (i = 0; i < well_number; i++) {
@@ -477,6 +487,10 @@ for (i = 0; i < well_number; i++) {
 
         selectImage("MAX_FOV_Number_"+(j+1));
         rename("TEST");
+          if (Use_Gaussian == true) {
+   	  selectImage("TEST"); 
+   	  run("Gaussian Blur...", "sigma="+Gaussian_radius);
+   	  }
 	    run("Command From Macro", "command=[de.csbdresden.stardist.StarDist2D], args=['input':'TEST', 'modelChoice':'Versatile (fluorescent nuclei)', 'normalizeInput':'true', 'percentileBottom':'0.8', 'percentileTop':'99.60000000000001', 'probThresh':'"+Prob_int+"', 'nmsThresh':'"+Overlap_int+"', 'outputType':'ROI Manager', 'nTiles':'1', 'excludeBoundary':'2', 'roiPosition':'Automatic', 'verbose':'false', 'showCsbdeepProgress':'false', 'showProbAndDist':'false'], process=[false]");  //REMEMBER TO CHANGE SETTNINGS FOR THIS PROTOCOL FUCK - run stardist
 	  
 	      	
@@ -523,6 +537,10 @@ for (i = 0; i < well_number; i++) {
      if (mask_check == true || Channel_number == 1){
         selectImage("MAX_FOV_Number_"+(j+1));
         rename("TEST");
+          if (Use_Gaussian == true) {
+   	  selectImage("TEST"); 
+   	  run("Gaussian Blur...", "sigma="+Gaussian_radius);
+   	  }
 	    run("Command From Macro", "command=[de.csbdresden.stardist.StarDist2D], args=['input':'TEST', 'modelChoice':'Versatile (fluorescent nuclei)', 'normalizeInput':'true', 'percentileBottom':'0.8', 'percentileTop':'99.60000000000001', 'probThresh':'"+Prob_int+"', 'nmsThresh':'"+Overlap_int+"', 'outputType':'ROI Manager', 'nTiles':'1', 'excludeBoundary':'2', 'roiPosition':'Automatic', 'verbose':'false', 'showCsbdeepProgress':'false', 'showProbAndDist':'false'], process=[false]");  //REMEMBER TO CHANGE SETTNINGS FOR THIS PROTOCOL FUCK - run stardist
 	    	
 	    	rawROInumber = roiManager('count');
@@ -544,7 +562,7 @@ for (i = 0; i < well_number; i++) {
       
 close("*");
  	for (FOVfiledelete = 0; FOVfiledelete < lengthOf(temp_file_Well_FOV_delete); FOVfiledelete++) {
-   		if (Channel_number > 1) {
+  		if (Channel_number > 1) {
    	File.delete(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+ File.separator + temp_file_Well_FOV_delete[FOVfiledelete]);
    	}else {
    		File.delete(exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+File.separator + temp_file_Well_FOV_delete[FOVfiledelete]);
@@ -604,6 +622,7 @@ saveAs("Results", exfolder + File.separator + "Well_Averages" + File.separator +
 
 close("*");
 }
+
 
 if(Channel_number > 1){ //detelting temp files created during macro so as to not infalte experiment size for storage
 Channel_folder_file_list = getFileList(exfolder + File.separator + channel_name_string);
