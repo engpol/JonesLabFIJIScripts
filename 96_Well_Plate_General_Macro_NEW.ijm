@@ -106,7 +106,7 @@ Dialog.addChoice("Which Channel would you like to use as Mask?", Channel_label_a
 Dialog.show();
 chosen_mask = Dialog.getChoice();
 }else {
-exit("Only 1 Channel - Please Untick Use Independent Masks as Channels Option and run again");
+chosen_mask = "BROKEN_IF_SEE";
 }
 
 if (mask_check == false) { //Get user input on which channel should be used to create an ROI mask
