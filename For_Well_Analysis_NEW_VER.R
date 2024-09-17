@@ -180,13 +180,16 @@ summary_stats_rbind_averaged <- summary_stats_rbind %>%
   select(-c(Filtered_ROI,Average_Cell_Intensity,Well_Label_Timepoint_Channel_Name,Label)) %>%
   distinct()
 
+
+
+
  if(any(grepl("Brightfield", summary_stats_rbind$Channel_Name))==TRUE) {
 
 Brightfield_area_func <- function(){
   
   summary_stats_rbind_bf <- summary_stats_rbind %>% ##Get BF Area
     filter(Channel_Name == "Brightfield") %>%
-    mutate(BF_Area = FOV_Ar_sum) %>%
+    mutate(BF_Area = Area_Sum) %>%
     mutate(Well_Label = paste(Well_ID, Label)) %>%
     select(BF_Area, Well_Label)
   
@@ -207,7 +210,7 @@ Brightfield_area_func <- function(){
 summary_stats_rbind <- Brightfield_area_func()
 
 summary_stats_rbind <- summary_stats_rbind %>%
-  mutate(Fluo_area_prop = BF_Area/Ar_sum) %>%
+  mutate(Fluo_area_prop = Area_Sum/BF_Area) %>%
   select(-c(BF_Area))
 
 summary_stats_rbind_averaged <- summary_stats_rbind %>%
@@ -217,7 +220,7 @@ summary_stats_rbind_averaged <- summary_stats_rbind %>%
          Mean_Average_Cell_Intensity = mean(Average_Cell_Intensity),
          Mean_Fluo_area_prop = mean(Fluo_area_prop)) %>%
   ungroup() %>%
-  select(-c(Filtered_ROI,Average_Cell_Intensity,Well_Label_Timepoint_Channel_Name, Fluo_area_prop,Ar_sum,Ar_mean)) %>%
+  select(-c(Filtered_ROI,Average_Cell_Intensity,Well_Label_Timepoint_Channel_Name, Fluo_area_prop,Area_Sum,Average_Cell_Intensity,Average_Area,Label)) %>%
   distinct()
 
  }
