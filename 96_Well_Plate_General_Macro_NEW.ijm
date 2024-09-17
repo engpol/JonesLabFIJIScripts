@@ -83,6 +83,10 @@ images_only = ImageFilesOnlyArray(length_filelist);
 filelist_Length = lengthOf(length_filelist);
 total_image_number = real_timepoint_number*FOV_number;
 
+if (mask_check == true && Channel_number == 1) {
+	exit("Only 1 Channel, please untick \"Use Independent Masks\" and Try Again");
+}
+
 Dialog.createNonBlocking("Channel Info"); //Create a dialog box to get names of each channel - will open an image and split it to make it easier to label
 open(exfolder + File.separator + images_only[1]);
 rename("Channel");
