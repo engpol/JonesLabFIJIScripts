@@ -24,6 +24,7 @@
 #@ Integer (label="Number of Wells", value = 49, style="spinner", min = 1, max = 99) well_number
 #@ boolean (label = "Correct for Drift with SIFT?") Drift_check
 #@ boolean (label = "Use Indepenent Masks for Each Channel?") mask_check
+#@ String (label="Data from which Microscope?",choices={"Nikon", "EVOS"}, style="radioButtonHorizontal") Microscope_Choice
 
 run("Fresh Start"); //ALWAYS INCLUDE
 setBatchMode(false); //Leave here as false, important for choosing channels later
@@ -47,7 +48,7 @@ function ImageFilesOnlyArray (arr) {
 	f=0;
 	files = newArray;
 	for (i = 0; i < arr.length; i++) {
-		if(endsWith(arr[i], ".tif") || endsWith(arr[i], ".nd2") || endsWith(arr[i], ".LSM") || endsWith(arr[i], ".czi") || endsWith(arr[i], ".jpg") ) {   //if it's a tiff image add it to the new array
+		if(endsWith(arr[i], ".tif") || endsWith(arr[i], ".tiff") || endsWith(arr[i], ".TIF") || endsWith(arr[i], ".TIFF") || endsWith(arr[i], ".nd2") || endsWith(arr[i], ".LSM") || endsWith(arr[i], ".czi") || endsWith(arr[i], ".jpg") ) {   //if it's a tiff image add it to the new array
 			files[f] = arr[i];
 			f = f+1;
 		}
@@ -56,7 +57,7 @@ function ImageFilesOnlyArray (arr) {
 	arr = Array.sort(arr);
 	return arr;
 	
-	
+}
 	
 	function natural_sort(a) { //Essentially a natural sort func for ImageJ - use in strings containing numbers - didnt end up using but useful so will leave here
 	arr2 = newArray(); //return array containing digits
@@ -72,26 +73,38 @@ function ImageFilesOnlyArray (arr) {
 	}
 	return arr2;
 }
-}
+
 
 //- - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- -- - -- - - -- -- - - - - - -- -- - - - - - -- -- - -
 // - VARIABLES 
 //- - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - --
-
 length_filelist = getFileList(exfolder);
 images_only = ImageFilesOnlyArray(length_filelist);
-filelist_Length = lengthOf(length_filelist);
+filelist_Length = lengthOf(images_only);
 total_image_number = real_timepoint_number*FOV_number;
+exfolder_updated = exfolder;
 
+//- - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - --
+// - TAKE USER INPUT
+//- - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - --
+length_filelist = getFileList(exfolder);
+images_only = ImageFilesOnlyArray(length_filelist);
+filelist_Length = lengthOf(images_only);
 if (mask_check == true && Channel_number == 1) {
 	exit("Only 1 Channel, please untick \"Use Independent Masks\" and Try Again");
 }
 
 Dialog.createNonBlocking("Channel Info"); //Create a dialog box to get names of each channel - will open an image and split it to make it easier to label
+if (Channel_number > 1 && Microscope_Choice == "Nikon") {
 open(exfolder + File.separator + images_only[1]);
 rename("Channel");
-if (Channel_number > 1) {
 run("Deinterleave", "how="+Channel_number);
+}
+if (Channel_number > 1 && Microscope_Choice == "EVOS") {
+	for (i = 0; i < Channel_number; i++) {
+open(exfolder + File.separator + images_only[i]);
+rename("Channel "+(i+1));
+	}
 }
 Dialog.addMessage("Please write down labels for each channel");
 for (i = 1; i <= Channel_number; i++) {
@@ -112,6 +125,7 @@ chosen_mask = Dialog.getChoice();
 }else {
 chosen_mask = "BROKEN_IF_SEE";
 }
+
 
 if (mask_check == false) { //Get user input on which channel should be used to create an ROI mask
 Dialog.create("Fluorescent Mask Used: Apply Gaussian Blur?");
@@ -139,10 +153,82 @@ if (mask_check == true || matches(chosen_mask, "Brightfield") != true ) {
 Sigma_int = 4;
 Epsilon_int = 0.05;
 }
+close("*");
+
+//- - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - --
+ // - REFORMATTING EVOS DATA - DOING USER INPUT BEFORE SO CAN INSTANTLY SAVE TO CORRECTLY LABELLED CHANNEL FOLDERS
+//- - - -- -- - - - - - -- -- - - - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - --
+
+setBatchMode(true); //If not using EVOS, folder directory will not be updated
+if (Microscope_Choice == "EVOS") {
+File.mkdir(exfolder + File.separator + "EVOS_Reformatted"); //Create folder for holding reformatted EVOS data
+exfolder_updated = exfolder + File.separator + "EVOS_Reformatted"; //This will be the folder containing the reformatted EVOS images
+Table.create("FOR_EVOS"); 
+Table.setColumn("FILENAMES", images_only); //Put array containing all filenames into a column
+EVOS_reordered_images = newArray(filelist_Length); //Make a new array of size equal to number of images - alternatively newArray() but must set expandable arrays to true
+//setBatchMode(true);
+//
+// FOR THE DEVELOPER - Evos image metadata is formatted as such: prefix_Plate_(R = "Real" data, D = Display data, you should never have _D_)_p00(timepoint, so p00 = time 1, p01 = time 2 etc.)_B02(Well ID, in this case B2)_f00(FOV number)_d0(Channel ID)
+//
+for (timepoints = 0; timepoints < timepoint_number; timepoints++) { //This entire loop is for seperating images from each timepoint into its own column
+for (images_EVOS = 0; images_EVOS < filelist_Length; images_EVOS++) {
+	    current_image_name = Table.getString("FILENAMES", images_EVOS);
+	    if(matches(current_image_name, ".*p0"+timepoints+".*")){ //This regex looks for all images of a given timepoint - p01, p02 etc. - as explained above
+	     Table.set("Timepoint_Number_"+timepoints+"", images_EVOS, current_image_name); //Set to new column in table
+	    }
+}
+}
+
+for (timepoints = 0; timepoints < timepoint_number; timepoints++) { //This nested for loop cleans the data by moving all images to start from index 0, makes it easier to loop next
+	EVOS_reordered_images = newArray();
+for (images_EVOS = 0; images_EVOS < filelist_Length; images_EVOS++) {
+	current_image_name = Table.getString("Timepoint_Number_"+timepoints+"", images_EVOS);
+	if (current_image_name != "0") {
+    image_non_zero = newArray();
+    image_non_zero[0] = current_image_name;
+    EVOS_reordered_images = Array.concat(EVOS_reordered_images,image_non_zero);
+}
+   Table.setColumn("Timepoint_Number_"+timepoints+"_CLEANED", EVOS_reordered_images);
+}
+}
+
+EVOS_reordered_images_INTERLEAVED = newArray(); //This final loop loops through to create an array of filenames that are in order of Well -> FOV-> -> Channel -> Timepoint - able to be analysed like the rest of the macro
+	for (images_EVOS = 0; images_EVOS < filelist_Length; images_EVOS++) {
+for (timepoints = 0; timepoints < timepoint_number; timepoints++) {
+	current_row_imagename = Table.getString("Timepoint_Number_"+timepoints+"_CLEANED", images_EVOS);
+	image_final_concat = newArray();
+	image_final_concat[0] = current_row_imagename;
+	EVOS_reordered_images_INTERLEAVED = Array.concat(EVOS_reordered_images_INTERLEAVED,image_final_concat);
+}
+}
+Table.setColumn("FINAL_EVOS_IMAGEFILE_ORDER", EVOS_reordered_images_INTERLEAVED);
+Table.update;
+
+for (Channelnum = 0; Channelnum < 6; Channelnum++) { //THIS IS A MESSY WAY TO SPLIT THE IMAGE STACK INTO SEPERATE CHANNELS AFTER THEYVE BEEN ALIGNED ACCORDING TO TIMEPOINT - THE D (as described above) in the image label refers to the channel ID in EVOS
+for (EVOS_files = 0; EVOS_files < filelist_Length; EVOS_files++) {
+        current_image_name_2 = Table.getString("FINAL_EVOS_IMAGEFILE_ORDER", EVOS_files);
+	    if(matches(current_image_name_2, ".*d"+Channelnum+".*")){
+open(exfolder + File.separator + EVOS_reordered_images_INTERLEAVED[EVOS_files]);
+}else {
+}
+}
+mylist = getList("image.titles");
+if (lengthOf(mylist) > 0) {
+run("Images to Stack", "name=EVOS_Split_"+Channelnum+" use");
+selectImage("EVOS_Split_"+Channelnum);
+save(exfolder + File.separator + "EVOS_Reformatted" + File.separator + "EVOS_Split_"+Channelnum+".tiff");
+}
+close("*");
+}
+close("FOR_EVOS");
+length_filelist = getFileList(exfolder_updated);
+images_only = ImageFilesOnlyArray(length_filelist);
+filelist_Length = lengthOf(images_only);
+}
+setBatchMode(false);
 
 // - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - --  - - - -- -- - - - - - --
 // CODE 
-// - - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --
 // - - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --
 setBatchMode(true); //Change here if wanting to run in non batch mode for some reason
 
@@ -150,14 +236,28 @@ setBatchMode(true); //Change here if wanting to run in non batch mode for some r
 if (Channel_number > 1) { 
 Table.create("CHANNELS"); //Create table 
 Table.setColumn("CHANNELNAME", Channel_label_array); //The stupid workaround for getting string from array
-File.openSequence(exfolder,"step=1"); 
+File.openSequence(exfolder_updated,"step=1"); 
 rename("expt");
+for (i = 0; i < Channel_number; i++) {
+channel_name_string = Table.getString("CHANNELNAME", i);
+File.mkdir(exfolder_updated + File.separator + channel_name_string);
+}
+if (Microscope_Choice == "Nikon") {
 run("Deinterleave", "how="+Channel_number);
 for (i = 0; i < Channel_number; i++) {
 channel_name_string = Table.getString("CHANNELNAME", i);
-File.mkdir(exfolder + File.separator + channel_name_string);
 selectImage("expt #"+(i+1));
-run("Image Sequence... ", "dir="+exfolder + File.separator + channel_name_string + ""+" format=TIFF");
+run("Image Sequence... ", "dir="+exfolder_updated + File.separator + channel_name_string + ""+" format=TIFF");
+}
+}else {
+for(k = 0; k < Channel_number; k++) {
+channel_name_string = Table.getString("CHANNELNAME", k);
+open(exfolder_updated + File.separator + images_only[k]);
+rename("Channel_"+channel_name_string);
+save(exfolder_updated + File.separator + channel_name_string + File.separator + "Channel_"+channel_name_string+".tiff");
+close("*");
+File.delete(exfolder_updated + File.separator + images_only[k]);
+}
 }
 }
 
@@ -188,8 +288,6 @@ close("CHANNELS");
 //Perform background correction, on each channel
 // - - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --- - - -- -- - - - - - --
 
-
-
 for (k = 0; k < Channel_number; k++) {
 if (Channel_number > 1) {
 Table.create("CHANNELS_UNAMBIGOUS"); //Create table
@@ -200,10 +298,20 @@ Table.setColumn("CHANNELNAME", Final_array_mask); //If order of channels had to 
 selectWindow("CHANNELS_UNAMBIGOUS");
 channel_name_string = Table.getString("CHANNELNAME", k);
 print("Working on "+ channel_name_string + " channel");
-File.openSequence(exfolder + File.separator + channel_name_string,"step=1"); //Import the Experiment Image Stack
-}else { //i.e. if Channel number = 1
+if (Microscope_Choice == "Nikon") {
+File.openSequence(exfolder_updated + File.separator + channel_name_string,"step=1"); //Import the Experiment Image Stack
+}
+if (Microscope_Choice == "EVOS") {
+open(exfolder_updated + File.separator + channel_name_string + File.separator + "Channel_"+channel_name_string+".tiff");
+}
+}if(Channel_number == 1) { //i.e. if Channel number = 1
 channel_name_string = chosen_mask; //CHANNELNAME table does not exist if number of channels is 1 - this throws error later in code
-File.openSequence(exfolder, "step=1")
+if (Microscope_Choice == "Nikon") {
+File.openSequence(exfolder_updated, "step=1")
+}
+if (Microscope_Choice == "EVOS") {
+open(exfolder_updated + File.separator + channel_name_string + File.separator + "Channel_"+channel_name_string+".tiff");
+}
 }
 rename("expt"); //rename to call easier
 selectImage("expt"); //select image
@@ -256,19 +364,18 @@ if(timepoint_check == true) {
 for (i = 0; i < nSlices; i++) {
 testArray = newArray(); //make empty array
 setSlice(i+1); //Set to acrive slice
-testArray[0] = getMetadata("Info"); //get image label from active slice
+testArray[0] = getInfo("slice.label"); //get image label from active slice - ALWAYS USE THIS NEVER USE IMAGE METADATA - THIS GIVES YOU ALL THE STUPID BIOFORMATS MICROSCOPY DATA IM NOT INTERESTED IN
 infoArraydouble = Array.concat(infoArraydouble, testArray); 
 }
-	
 }
 close("\\Others");
 rename("Corrected_Flo_Image");
 selectImage("Corrected_Flo_Image");
 run("Stack Splitter", "number="+well_number); //Split image stack according to number of wells
 if (Channel_number > 1) {
-File.mkdir(exfolder + File.separator + channel_name_string + File.separator + "Individual_Well"+""); //Make folder to save stacks in - divide into each channel if there
+File.mkdir(exfolder_updated + File.separator + channel_name_string + File.separator + "Individual_Well"+""); //Make folder to save stacks in - divide into each channel if there
 }else {
-File.mkdir(exfolder + File.separator + "Individual_Well"+""); //if only 1 channel
+File.mkdir(exfolder_updated + File.separator + "Individual_Well"+""); //if only 1 channel
 }
 
 
@@ -278,9 +385,9 @@ File.mkdir(exfolder + File.separator + "Individual_Well"+""); //if only 1 channe
 
 for (i = 0; i < well_number; i++) { //Loop through each split stack depending on well
 	if (Channel_number > 1) {
-	File.mkdir(exfolder + File.separator + channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+""); //If more than 1 channel  
+	File.mkdir(exfolder_updated + File.separator + channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+""); //If more than 1 channel  
 	}else {
-File.mkdir(exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+"");  //Make a folder for the active Well
+File.mkdir(exfolder_updated + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+"");  //Make a folder for the active Well
 	}
 if (i < 9){ //Has to be done as for i less than 10 as i will be single digit- i.e. 0001 vs 0010
 selectImage("stk_000"+(i+1)+"_Corrected_Flo_Image");
@@ -293,24 +400,24 @@ run("Stack Splitter", "number="+FOV_number);
 }
 for (j = 0; j < FOV_number; j++) { //Nested for loop - saving each FOV
 if (Channel_number > 1) {
-File.mkdir(exfolder + File.separator + channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_"+(j+1)+""); //Make a folder for the active Well - if more than 1 channel
+File.mkdir(exfolder_updated + File.separator + channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_"+(j+1)+""); //Make a folder for the active Well - if more than 1 channel
 }else {
-File.mkdir(exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_"+(j+1)+""); //Make a folder for the active Well
+File.mkdir(exfolder_updated + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_"+(j+1)+""); //Make a folder for the active Well
 }
 if (j < 9){
 selectImage("stk_000"+(j+1)+"_Stack_Split_Image_"+(i+1)+"");
 if (Channel_number > 1) {
-run("Image Sequence... ", "dir="+exfolder + File.separator + channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_"+(j+1)+""+" format=TIFF");
+run("Image Sequence... ", "dir="+exfolder_updated + File.separator + channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_"+(j+1)+""+" format=TIFF");
 }else {
-run("Image Sequence... ", "dir="+exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_"+(j+1)+""+" format=TIFF");
+run("Image Sequence... ", "dir="+exfolder_updated + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_"+(j+1)+""+" format=TIFF");
 }
 }
 if (j >= 9) {
 selectImage("stk_00"+(j+1)+"_Stack_Split_Image_"+(i+1)+"");
 if (Channel_number > 1) {
-run("Image Sequence... ", "dir="+exfolder + File.separator + channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_"+(j+1)+""+" format=TIFF");
+run("Image Sequence... ", "dir="+exfolder_updated + File.separator + channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_"+(j+1)+""+" format=TIFF");
 }else {
-run("Image Sequence... ", "dir="+exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_"+(j+1)+""+" format=TIFF");
+run("Image Sequence... ", "dir="+exfolder_updated + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_"+(j+1)+""+" format=TIFF");
 }
 }
 }
@@ -329,17 +436,17 @@ print("Images divided by well and FOV number");
 
 
 if (Channel_number > 1 || mask_check == true) {
-File.mkdir(exfolder + File.separator + channel_name_string + File.separator + "Well_Averages"+"");
-File.mkdir(exfolder + File.separator + channel_name_string + File.separator + "StarDist_Test"+"");
+File.mkdir(exfolder_updated + File.separator + channel_name_string + File.separator + "Well_Averages"+"");
+File.mkdir(exfolder_updated + File.separator + channel_name_string + File.separator + "StarDist_Test"+"");
 }
 if (mask_check == false && Channel_number > 1) {
-File.mkdir(exfolder + File.separator + "MASK_OUTPUT");
-File.mkdir(exfolder + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well");
-File.mkdir(exfolder + File.separator + "StarDist_Test"+"");
+File.mkdir(exfolder_updated + File.separator + "MASK_OUTPUT");
+File.mkdir(exfolder_updated + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well");
+File.mkdir(exfolder_updated + File.separator + "StarDist_Test"+"");
 }
 if (Channel_number == 1) {
-File.mkdir(exfolder + File.separator + "Well_Averages"+"");
-File.mkdir(exfolder + File.separator + "StarDist_Test"+"");
+File.mkdir(exfolder_updated + File.separator + "Well_Averages"+"");
+File.mkdir(exfolder_updated + File.separator + "StarDist_Test"+"");
 }
 
 //Code below is for generating an example StarDist output to decide best settings for your experiment 
@@ -347,9 +454,9 @@ if ((matches(channel_name_string, "Brightfield") != true)) { //Dont care about b
 	Star_Dist_Array = newArray(0.051,0.11,0.151,0.201,0.251,0.301,0.351,0.451,0.501,0.551,0.601,0.651,0.701,0.751,0.801,0.851,0.901,0.951,1);
    	if (mask_check == false && k==0) { //k = 0 ensures this is only run on mask channel - if only one channel is present this will be first anyway
      if (Channel_number == 1) {
-     File.openSequence(exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");  
+     File.openSequence(exfolder_updated + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");  
      }else {
-   	  File.openSequence(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
+   	  File.openSequence(exfolder_updated + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
      }run("Z Project...", "projection=[Max Intensity]"); //find average area of cell containting regions
 	  selectImage("MAX_FOV_Number_1"+""); 
    	  run("Duplicate...", "title=TEST duplicate"); //Dont need this but copied code across
@@ -366,29 +473,29 @@ if ((matches(channel_name_string, "Brightfield") != true)) { //Dont care about b
 	roiManager("deselect"); 
 	roiManager("fill"); //Fill roi regions 
 	selectImage("TO_SAVE");
-	save(exfolder + File.separator + "StarDist_Test" + File.separator +"STARDIST_THRESH_"+Star_Dist_Array[i]+"_TEST.tiff");
+	save(exfolder_updated + File.separator + "StarDist_Test" + File.separator +"STARDIST_THRESH_"+Star_Dist_Array[i]+"_TEST.tiff");
 	selectImage("TO_SAVE");
 	close();
 	roiManager("reset");
 	}
 	close("*");
-	sdfilelist = getFileList(exfolder + File.separator + "StarDist_Test");
+	sdfilelist = getFileList(exfolder_updated + File.separator + "StarDist_Test");
 for (sdfiles = 0; sdfiles < lengthOf(sdfilelist); sdfiles++) {
-        open(exfolder + File.separator + "StarDist_Test"+File.separator+sdfilelist[sdfiles]); //open all StarDist images to save into stack - cant use import image sequence as will not keep file names
+        open(exfolder_updated + File.separator + "StarDist_Test"+File.separator+sdfilelist[sdfiles]); //open all StarDist images to save into stack - cant use import image sequence as will not keep file names
      
 }	
      run("Images to Stack", "name=StarDist_Output use");  //to see the image filenames
      setBatchMode("exit and display"); //show images
 	 if (Channel_number == 1) {
-     File.openSequence(exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");  
+     File.openSequence(exfolder_updated + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");  
      }else {
-	 File.openSequence(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
+	 File.openSequence(exfolder_updated + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
    	}
    	
    	}
 
  if (mask_check == true) {
- 	  File.openSequence(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
+ 	  File.openSequence(exfolder_updated + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
   run("Z Project...", "projection=[Max Intensity]"); //find average area of cell containting regions
 	  selectImage("MAX_FOV_Number_1"+""); 
    	  run("Duplicate...", "title=TEST duplicate");
@@ -405,20 +512,21 @@ for (sdfiles = 0; sdfiles < lengthOf(sdfilelist); sdfiles++) {
 	roiManager("deselect");
 	roiManager("fill");
 	selectImage("TO_SAVE");
-	save(exfolder + File.separator + channel_name_string + File.separator + "StarDist_Test" + File.separator +"STARDIST_THRESH_"+Star_Dist_Array[i]+"_TEST.tiff");
+	save(exfolder_updated + File.separator + channel_name_string + File.separator + "StarDist_Test" + File.separator +"STARDIST_THRESH_"+Star_Dist_Array[i]+"_TEST.tiff");
 	selectImage("TO_SAVE");
 	close();
 	roiManager("reset");
  }
     close("*");
-    sdfilelist = getFileList(exfolder + File.separator + channel_name_string + File.separator + "StarDist_Test");
+    sdfilelist = getFileList(exfolder_updated + File.separator + channel_name_string + File.separator + "StarDist_Test");
 for (sdfiles = 0; sdfiles < lengthOf(sdfilelist); sdfiles++) {
-        open(exfolder + File.separator + channel_name_string + File.separator + "StarDist_Test" +File.separator+sdfilelist[sdfiles]);     
+        open(exfolder_updated + File.separator + channel_name_string + File.separator + "StarDist_Test" +File.separator+sdfilelist[sdfiles]);     
 }
     run("Images to Stack", "name=StarDist_Output use");  //to see the image filenames
     setBatchMode("exit and display"); //show images
-    File.openSequence(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
+    File.openSequence(exfolder_updated + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
  }
+ if (mask_check == false && k==0 || mask_check == true){
    	Dialog.createNonBlocking("Fluorescent Mask Detected");
 	Dialog.addMessage("Using a Fluorescent channel as mask, please choose values for StarDist:");
 	Dialog.addNumber("Probability/Score Threshold (0.00 - 1.00)", 0.6);
@@ -428,7 +536,7 @@ for (sdfiles = 0; sdfiles < lengthOf(sdfilelist); sdfiles++) {
 	Dialog.show();
 	Prob_int = Dialog.getNumber();
     Overlap_int = Dialog.getNumber();
- 
+ }
    	}
    	close("*");
    	
@@ -442,14 +550,14 @@ for (i = 0; i < well_number; i++) {
    	
    	if (Channel_number > 1) {
    		
-   	temp_file_Well_FOV_delete = getFileList(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"");
-   	File.mkdir(exfolder + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+""); 
-   	File.mkdir(exfolder + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"");  
-   	File.openSequence(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"","step=1");
+   	temp_file_Well_FOV_delete = getFileList(exfolder_updated + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"");
+   	File.mkdir(exfolder_updated + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+""); 
+   	File.mkdir(exfolder_updated + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"");  
+   	File.openSequence(exfolder_updated + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"","step=1");
    	}else {
    	
-	    temp_file_Well_FOV_delete = getFileList(exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"");
-	    File.openSequence(exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"","step=1");  
+	    temp_file_Well_FOV_delete = getFileList(exfolder_updated + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"");
+	    File.openSequence(exfolder_updated + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+"","step=1");  
    
    }
   
@@ -478,7 +586,7 @@ for (i = 0; i < well_number; i++) {
         if(matches(chosen_mask, "Brightfield") == true){
         selectImage("FOV_Number_"+(j+1)+" #"+x);
         roiManager("Add");
-        roiManager("save", exfolder + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well"+ File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+File.separator+"StarDist_ROI.zip");
+        roiManager("save", exfolder_updated + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well"+ File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+File.separator+"StarDist_ROI.zip");
         roiManager("reset");
         }
         
@@ -514,14 +622,14 @@ for (i = 0; i < well_number; i++) {
 	    	}
 	    	
 	    roiManager("deselect");
-	    roiManager("save", exfolder + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well"+ File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+File.separator+"StarDist_ROI.zip");
+	    roiManager("save", exfolder_updated + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well"+ File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+File.separator+"StarDist_ROI.zip");
 
 	    close("*");
 	    roiManager("reset");
 
 }
         if (mask_check == false && (matches(chosen_mask, channel_name_string) != true)  && (matches(channel_name_string, "Brightfield") != true)){ 
-        	 roiManager("open", exfolder + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well"+ File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+File.separator+"StarDist_ROI.zip");
+        	 roiManager("open", exfolder_updated + File.separator + "MASK_OUTPUT" + File.separator + "Individual_Well"+ File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+File.separator+"StarDist_ROI.zip");
         	rawROInumber = roiManager('count'); //So ROI count is present even in MASKed datatable
 	    	roi_count_empty_array[j] = rawROInumber; // /\
         selectImage("FOV_Number_"+(j+1));
@@ -567,9 +675,9 @@ for (i = 0; i < well_number; i++) {
 close("*");
  	for (FOVfiledelete = 0; FOVfiledelete < lengthOf(temp_file_Well_FOV_delete); FOVfiledelete++) {
   		if (Channel_number > 1) {
-   	File.delete(exfolder + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+ File.separator + temp_file_Well_FOV_delete[FOVfiledelete]);
+   	File.delete(exfolder_updated + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+ File.separator + temp_file_Well_FOV_delete[FOVfiledelete]);
    	}else {
-   		File.delete(exfolder + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+File.separator + temp_file_Well_FOV_delete[FOVfiledelete]);
+   		File.delete(exfolder_updated + File.separator + "Individual_Well" + File.separator + "Well_Number_"+(i+1)+ File.separator + "FOV_Number_" +(j+1)+File.separator + temp_file_Well_FOV_delete[FOVfiledelete]);
    	}	
    	}
    } 
@@ -613,12 +721,12 @@ close("TEXT");
 updateResults();
 selectWindow("Results");
 if(Channel_number > 1){
-	saveAs("Results", exfolder + File.separator + channel_name_string + File.separator + "Well_Averages" + File.separator + channel_name_string +"_Well_Number_"+(i+1) + ".csv");
+	saveAs("Results", exfolder_updated + File.separator + channel_name_string + File.separator + "Well_Averages" + File.separator + channel_name_string +"_Well_Number_"+(i+1) + ".csv");
 	print("Results for Well " + (i+1) + " and FOV " + (j+1) + " collected");
 }
 
 if(Channel_number == 1) {
-saveAs("Results", exfolder + File.separator + "Well_Averages" + File.separator + "Well_Number_"+(i+1) + ".csv");
+saveAs("Results", exfolder_updated + File.separator + "Well_Averages" + File.separator + "Well_Number_"+(i+1) + ".csv");
 }
  close("Results");
  
@@ -629,10 +737,10 @@ close("*");
 
 
 if(Channel_number > 1){ //detelting temp files created during macro so as to not infalte experiment size for storage
-Channel_folder_file_list = getFileList(exfolder + File.separator + channel_name_string);
+Channel_folder_file_list = getFileList(exfolder_updated + File.separator + channel_name_string);
 temp_files_to_delete =  ImageFilesOnlyArray(Channel_folder_file_list);
 for (tempfile = 0; tempfile < lengthOf(temp_files_to_delete); tempfile++) {
-File.delete(exfolder + File.separator + channel_name_string + File.separator + temp_files_to_delete[tempfile]);
+File.delete(exfolder_updated + File.separator + channel_name_string + File.separator + temp_files_to_delete[tempfile]);
 }
 }
 }
