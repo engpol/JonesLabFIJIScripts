@@ -94,6 +94,22 @@ if (mask_check == true && Channel_number == 1) {
 	exit("Only 1 Channel, please untick \"Use Independent Masks\" and Try Again");
 }
 
+Dialog.create("Use Software Binning?");
+	Dialog.addMessage("Would you like to use sofware binning to reduce size of your images?");
+	Dialog.addMessage("(This may improve speed significantly)");
+	Dialog.addCheckbox("Use Software Binning?", false);
+	Dialog.show();
+	binning_test = Dialog.getCheckbox();
+	
+if (binning_test == true) {
+	Dialog.create("What is your desired bin size?");
+	Dialog.addMessage("2 = 4* smaller, 4 = 16* smaller etc.");
+	Dialog.addNumber("ZxZ Bin Size", 2);
+	Dialog.show();
+	bin_int = Dialog.getNumber();
+}
+
+
 Dialog.createNonBlocking("Channel Info"); //Create a dialog box to get names of each channel - will open an image and split it to make it easier to label
 if (Channel_number > 1 && Microscope_Choice == "Nikon") {
 open(exfolder + File.separator + images_only[1]);
@@ -127,7 +143,7 @@ chosen_mask = "BROKEN_IF_SEE";
 }
 
 
-if (mask_check == false) { //Get user input on which channel should be used to create an ROI mask
+if (chosen_mask != "Brightfield") { //Get user input on which channel should be used to create an ROI mask
 Dialog.create("Fluorescent Mask Used: Apply Gaussian Blur?");
 Dialog.addMessage("If signal in channel used as mask is non-homogenous, a gaussian blur may improve segmentation");
 Dialog.addCheckbox("Apply Gaussian Blur, before StarDist Segmentation?", false);
@@ -233,7 +249,7 @@ filelist_Length = lengthOf(images_only);
 setBatchMode(true); //Change here if wanting to run in non batch mode for some reason
 
 //Code for saving different channels in seperate folders - - -  --  - -  -- - -  -- - -  -- - -  -- - -  -- - -  --
-if (Channel_number > 1) { 
+if (Channel_number > 1 && Microscope_Choice == "Nikon") { 
 Table.create("CHANNELS"); //Create table 
 Table.setColumn("CHANNELNAME", Channel_label_array); //The stupid workaround for getting string from array
 File.openSequence(exfolder_updated,"step=1"); 
@@ -242,16 +258,19 @@ for (i = 0; i < Channel_number; i++) {
 channel_name_string = Table.getString("CHANNELNAME", i);
 File.mkdir(exfolder_updated + File.separator + channel_name_string);
 }
-if (Microscope_Choice == "Nikon") {
 run("Deinterleave", "how="+Channel_number);
 for (i = 0; i < Channel_number; i++) {
 channel_name_string = Table.getString("CHANNELNAME", i);
 selectImage("expt #"+(i+1));
 run("Image Sequence... ", "dir="+exfolder_updated + File.separator + channel_name_string + ""+" format=TIFF");
 }
-}else {
+}
+if(Channel_number > 1 && Microscope_Choice == "EVOS"){
+Table.create("CHANNELS"); //Create table 
+Table.setColumn("CHANNELNAME", Channel_label_array); //The stupid workaround for getting string from array
 for(k = 0; k < Channel_number; k++) {
 channel_name_string = Table.getString("CHANNELNAME", k);
+File.mkdir(exfolder_updated + File.separator + channel_name_string);
 open(exfolder_updated + File.separator + images_only[k]);
 rename("Channel_"+channel_name_string);
 save(exfolder_updated + File.separator + channel_name_string + File.separator + "Channel_"+channel_name_string+".tiff");
@@ -259,7 +278,7 @@ close("*");
 File.delete(exfolder_updated + File.separator + images_only[k]);
 }
 }
-}
+
 
 //- -  -- - -  -- - -  -- - -  -- - -  -- - -  --- -  -- - -  -- - -  -- - -  -- - -  -- - -  --- -  -- - -  -- - -  -- - -  -- - -  -- - -  --
 //- -  -- - -  -- - -  -- - -  -- - -  -- - -  --- -  -- - -  -- - -  -- - -  -- - -  -- - -  -- - -  -- - -  -- - -  --- -  -- - -  -- - -  -- - -  -- - -  -- - -  -- - -  -- - -  -- - -  --- -  -- - -  -- - -  -- 
@@ -315,6 +334,16 @@ open(exfolder_updated + File.separator + channel_name_string + File.separator + 
 }
 rename("expt"); //rename to call easier
 selectImage("expt"); //select image
+
+if (binning_test == true) { //Perform software bin if that is desired
+if(timepoint_check == false){ //need seperate commands depending on if there is timeseries or not
+run("Bin...", "x="+bin_int+" y="+bin_int+" bin=Average");
+selectImage("expt");
+}else {
+run("Bin...", "x="+bin_int+" y="+bin_int+" z=1 bin=Average");
+}
+}
+
 
 
 if (timepoint_check == false) {  //Super messy workaround for if only have 1 timepoint. Double up stack to artificially create a second time point - it will be removed in R script anyway
@@ -526,7 +555,18 @@ for (sdfiles = 0; sdfiles < lengthOf(sdfilelist); sdfiles++) {
     setBatchMode("exit and display"); //show images
     File.openSequence(exfolder_updated + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
  }
- if (mask_check == false && k==0 || mask_check == true){
+ if (mask_check == false && k==0){
+   	Dialog.createNonBlocking("Fluorescent Mask Detected");
+	Dialog.addMessage("Using a Fluorescent channel as mask, please choose values for StarDist:");
+	Dialog.addNumber("Probability/Score Threshold (0.00 - 1.00)", 0.6);
+	Dialog.addMessage("Higher values lead to fewer segmented objects, but will likely avoid false positives (unless heavily overlapping, leave this one)");
+	Dialog.addNumber("Overlap Threshold (0.00- 1.00)", 0.05);
+	Dialog.addMessage("Higher values allow segmented objects to overlap substantially");
+	Dialog.show();
+	Prob_int = Dialog.getNumber();
+    Overlap_int = Dialog.getNumber();
+ }
+  if (mask_check == true){
    	Dialog.createNonBlocking("Fluorescent Mask Detected");
 	Dialog.addMessage("Using a Fluorescent channel as mask, please choose values for StarDist:");
 	Dialog.addNumber("Probability/Score Threshold (0.00 - 1.00)", 0.6);
