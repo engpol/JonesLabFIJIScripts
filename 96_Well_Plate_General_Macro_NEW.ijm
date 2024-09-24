@@ -225,7 +225,7 @@ length_filelist = getFileList(exfolder_updated);
 images_only = ImageFilesOnlyArray(length_filelist);
 filelist_Length = lengthOf(images_only);
 }
-setBatchMode(false);
+
 
 // - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - -- - - - -- -- - - - - - --  - - - -- -- - - - - - --
 // CODE 
@@ -322,7 +322,7 @@ infoArraydouble = newArray(); //This and the following code has to be done becau
 for (i = 0; i < nSlices; i++) {
 testArray = newArray(); //make empty array
 setSlice(i+1); //Set to acrive slice
-testArray[0] = getMetadata("Info"); //get image label from active slice
+testArray[0] = getInfo("slice.label"); //get image label from active slice
 infoArraydouble = Array.concat(infoArraydouble, testArray); //Add twice to empty array, as combined stack will have each image added twice, i.e. 1,1,2,2,3,3 etc. 
 infoArraydouble = Array.concat(infoArraydouble, testArray);
 }
