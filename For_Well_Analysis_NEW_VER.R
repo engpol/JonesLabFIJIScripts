@@ -1,4 +1,4 @@
-##  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+##-----------------------------------------------------------------------------
 ##  I G N O R E 
 ##  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -12,7 +12,7 @@ if (any(installed_packages == FALSE)) {
 
 # Packages loading
 invisible(lapply(packages, library, character.only = TRUE))
-
+##-----------------------------------------------------------------------------
 ## - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ## C H A N G E    S E T T I N G S   H E R E   B E F O R E   R U N N I N G 
 ## - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -31,12 +31,12 @@ Global_Max_Area <- 10000 ## MAXIMUM CELL AREA
   
 Global_Min_Area <- 1 ## MINIMUM CELL AREA
 
-Channel_escape_pattern <- c("Brightfield", "Tetrazine") ## Add any channels you would like to escape filtering - by default only Brightfield - do it like this -  c("Brightfield","GFP","SNAP") - etc. 
+Channel_escape_pattern <- c("Brightfield", "Tetrazine") ## Add any channels you would like to escape boolean filtering - by default only Brightfield - do it like this -  c("Brightfield","GFP","SNAP") - etc. 
+                                                        ## Don't worry, if masking filter is on, it will still remove the corresponding cells
 
-
 ## - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ## - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-## - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+##------------------------------------------------------------------------------
 Microscope_Choice <- readline('Which Microscope was Used? \n 1. "EVOS" \n 2. "Nikon" \n')
 
 if(boolean_filter == FALSE){
@@ -538,3 +538,4 @@ if(boolean_filter == TRUE){
   write.csv(Filter_Settings , paste(exfolder, "/Filter_Settings.csv", sep = ""), row.names = FALSE) ##Save anotated data as .csv file
   
 } ## In case someone forgot to change the setting
+##
