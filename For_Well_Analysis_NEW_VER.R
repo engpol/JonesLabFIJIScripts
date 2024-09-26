@@ -17,24 +17,31 @@ invisible(lapply(packages, library, character.only = TRUE))
 ## C H A N G E    S E T T I N G S   H E R E   B E F O R E   R U N N I N G 
 ## - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-boolean_filter <- FALSE ## PLEASE SET TO FALSE IF YOU DO NOT WISH TO APPLY ANY FILTERS
+boolean_filter <- TRUE ## PLEASE SET TO FALSE IF YOU DO NOT WISH TO APPLY ANY FILTERS
 
-Global_Max_Mean <- 1000 ## MAX CELL INTENSITY
+Masking_Filter <- TRUE ## ONLY WORKS IF YOU USED A CHANNEL FILTER DURING IMAGEJ ANALYSIS!!!!! IF SET TO TRUE, IF BOOLEAN_FILTER REMOVES A CELL IN ONE CHANNEL - IT WILL REMOVE THE SAME CELL FROM ALL OTHER CHANNELS
 
-Global_Min_Mean <- 100  ## MINIMUM CELL INTENSITY
+Masking_Filter_Pattern <- c("GFP") ## NAME OF THE CHANNEL YOU USED AS A FILTER - I GUESS IN THEORY YOU COULD CHANGE THE FILTERING CHANNEL EVEN IF YOU DIDNT STARDIST ACCORDING TO THIS
 
-Global_Max_Area <- 1000 ## MAXIMUM CELL AREA
+Global_Max_Mean <- 10000 ## MAX CELL INTENSITY
+
+Global_Min_Mean <- 90  ## MINIMUM CELL INTENSITY
+
+Global_Max_Area <- 10000 ## MAXIMUM CELL AREA
   
-Global_Min_Area <- 100 ## MINIMUM CELL AREA
+Global_Min_Area <- 1 ## MINIMUM CELL AREA
 
-Channel_pattern <- c("Brightfield") ## Add any channels you would like to escape filtering - by default only Brightfield - do it like this -  c("Brightfield","GFP","SNAP") - etc. 
-
+Channel_escape_pattern <- c("Brightfield", "Tetrazine") ## Add any channels you would like to escape filtering - by default only Brightfield - do it like this -  c("Brightfield","GFP","SNAP") - etc. 
 
 
 ## - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ## - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ## - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Microscope_Choice <- readline('Which Microscope was Used? \n 1. "EVOS" \n 2. "Nikon" \n')
+
+if(boolean_filter == FALSE){
+  Masking_Filter = FALSE
+} ## In case someone forgot to change the setting
 
 if(Microscope_Choice == "2") {
 
@@ -73,7 +80,7 @@ combined_list <- lapply(split_by_prefix, iterate_rbind) ##For each Channel Group
 Filter_iterate <- function(list_element) {
   active_dataframe <- as.data.frame(list_element)
   colnames(active_dataframe) <- sub(".*\\.", "", colnames(active_dataframe))
-  if(boolean_filter == TRUE && grepl(Channel_pattern,active_dataframe$Channel_Name) == FALSE){
+  if(boolean_filter == TRUE && any(grepl(Channel_escape_pattern,active_dataframe$Channel_Name)) == FALSE){
   active_dataframe[ , grepl("Mean", names(active_dataframe))] <- lapply(active_dataframe[ , grepl("Mean", names(active_dataframe))], function(col) { ##For all rows but only columns containg "Mean", apply the following filters
       col[col > Global_Max_Mean] <- NA  # Set values larger than X to NA
       col[col < Global_Min_Mean] <- NA # Set values smaller than X to NA
@@ -88,14 +95,11 @@ Filter_iterate <- function(list_element) {
     
     col[col = 0] <- NA ##So empty columns - i.e. FOVs which had less cells then other ones -  are not later included in Mean calculations - set to NA
     return(col)
-  }) ##Filter Area columns
+  })##Filter Area columns
   }
-  active_dataframe[active_dataframe == 0] <- NA
   
+  active_dataframe[active_dataframe == 0] <- NA
   mean_cols <- grep("Mean", colnames(active_dataframe), value = TRUE)
-  active_dataframe <- active_dataframe %>%
-    mutate(Filtered_ROI = rowSums(across(all_of(mean_cols), ~ . != 0), na.rm = TRUE))
-
   return(active_dataframe) 
 } ##Function to filter columns based on area and mean - Global values are on top of script
 
@@ -103,6 +107,7 @@ filtered_list <- lapply(combined_list, Filter_iterate) ##apply filter to all cha
 
 NA_clean_up <- function(list_element) {
   active_dataframe <- as.data.frame(list_element)
+  active_dataframe_one_row <- active_dataframe[1,]
   colnames(active_dataframe) <- sub(".*\\.", "", colnames(active_dataframe))
   
   # Step 1: Identify suffixes based on pattern matching - All cells should have same suffixes so no point doubling or using intersect
@@ -120,11 +125,31 @@ NA_clean_up <- function(list_element) {
     
     active_dataframe[na_indices, c(mean_col, area_col)] <- NA
   }
-  
+  if(Masking_Filter == TRUE && grepl(Masking_Filter_Pattern,active_dataframe_one_row$Channel_Name) == TRUE){
+    na_positions <- is.na(active_dataframe)
+    na_indices <- which(na_positions, arr.ind = T) ## convert into indices for data frames
+    assign("na_indices", na_indices, envir = .GlobalEnv) 
+  }
   return(active_dataframe)
 } ##Function to remove NA values from Mean if Area was removed and vice versa
 
 filtered_list_NA_cleaned <- lapply(filtered_list, NA_clean_up) ##apply NA clean to all channel dataframes
+
+Masking_filter <- function(list_element) {
+  active_dataframe <- as.data.frame(list_element)
+  active_dataframe_one_row <- active_dataframe[1,]
+  if(Masking_Filter == TRUE  && any(grepl(active_dataframe_one_row$Channel_Name,"Brightfield")) == FALSE){
+    active_dataframe[na_indices] <- NA
+    mean_cols <- grep("Mean", colnames(active_dataframe), value = TRUE)
+    active_dataframe <- active_dataframe %>%
+      mutate(Filtered_ROI = rowSums(across(all_of(mean_cols), ~ . != 0), na.rm = TRUE))
+    return(active_dataframe)
+  }else{
+    return(active_dataframe)
+  }
+} ## Needs to be done as position of filter channel is not nessarily 1st in factor levels - will be dependent on alphebetical sorting
+
+filtered_list_NA_cleaned_Masking_filtered <- lapply(filtered_list_NA_cleaned, Masking_filter)
 
 no_dup_rows <- function(list_element) {
   testing_un_NA_unique <- list_element[!duplicated(list_element$Label_ID), ]
@@ -133,7 +158,7 @@ no_dup_rows <- function(list_element) {
   return(testing_un_NA_unique_2)
 } ##Func to remove dup rows and nonsensical rows - i.e. If for loop went and measured an empty image etc.
 
-filtered_list_cleaned_FINAL <- lapply(filtered_list_NA_cleaned, no_dup_rows) ##Apply above func to all channel dataframes
+filtered_list_cleaned_FINAL <- lapply(filtered_list_NA_cleaned_Masking_filtered, no_dup_rows) ##Apply above func to all channel dataframes
 
 row_wise_mean_and_area_avg <- function(list_element) {
   list_element$Average_Cell_Intensity <- rowMeans(list_element[grep('^Mean', names(list_element))], na.rm = T) ##Take get an average of mean for each FOV
@@ -172,18 +197,18 @@ summary_stats_rbind<- transform(summary_stats_rbind, Label = sapply(regmatches(L
 summary_stats_rbind <- summary_stats_rbind %>%
   mutate(Average_Area = Ar_mean,
          Area_Sum = Ar_sum) %>%
-  select(-c(Ar_mean,Ar_sum))
+  dplyr::select(-c(Ar_mean,Ar_sum))
 
 summary_stats_rbind_averaged <- summary_stats_rbind %>%
   mutate(Well_Label_Timepoint_Channel_Name = paste(Well_ID,Timepoint,Channel_Name, sep = "_")) %>%
   group_by(Well_Label_Timepoint_Channel_Name) %>%
-  mutate(Average_Cell_Number = mean(Filtered_ROI),
-         Average_Cell_Intensity = mean(Average_Cell_Intensity)) %>%
+  mutate( Average_Cell_Intensity_Well = mean(Average_Cell_Intensity, na.rm = T),
+          Average_Cell_Number = mean(Filtered_ROI, na.rm = T),
+          Average_Area_Well = mean(Average_Area, na.rm = T),
+          Total_Area_Well = sum(Area_Sum)) %>%
   ungroup() %>%
-  select(-c(Filtered_ROI,Average_Cell_Intensity,Well_Label_Timepoint_Channel_Name,Label)) %>%
+  dplyr::select(-c(Filtered_ROI,Average_Cell_Intensity,Well_Label_Timepoint_Channel_Name,Label,Average_Area,Area_Sum)) %>%
   distinct()
-
-
 
 
  if(any(grepl("Brightfield", summary_stats_rbind$Channel_Name))==TRUE) {
@@ -194,7 +219,7 @@ Brightfield_area_func <- function(){
     filter(Channel_Name == "Brightfield") %>%
     mutate(BF_Area = Area_Sum) %>%
     mutate(Well_Label = paste(Well_ID, Label)) %>%
-    select(BF_Area, Well_Label)
+    dplyr::select(BF_Area, Well_Label)
   
   summary_stats_rbind_non_bf <- summary_stats_rbind %>% ##Set non BF channels to Na
     mutate(Well_Label = paste(Well_ID, Label))
@@ -214,7 +239,7 @@ summary_stats_rbind <- Brightfield_area_func()
 
 summary_stats_rbind <- summary_stats_rbind %>%
   mutate(Fluo_area_prop = Area_Sum/BF_Area) %>%
-  select(-c(BF_Area))
+  dplyr::select(-c(BF_Area))
 
 summary_stats_rbind_averaged <- summary_stats_rbind %>%
   mutate(Well_Label_Timepoint_Channel_Name = paste(Well_ID,Timepoint,Channel_Name, sep = "_")) %>%
@@ -223,7 +248,7 @@ summary_stats_rbind_averaged <- summary_stats_rbind %>%
          Mean_Average_Cell_Intensity = mean(Average_Cell_Intensity),
          Mean_Fluo_area_prop = mean(Fluo_area_prop)) %>%
   ungroup() %>%
-  select(-c(Filtered_ROI,Average_Cell_Intensity,Well_Label_Timepoint_Channel_Name, Fluo_area_prop,Area_Sum,Average_Cell_Intensity,Average_Area,Label)) %>%
+  dplyr::select(-c(Filtered_ROI,Average_Cell_Intensity,Well_Label_Timepoint_Channel_Name, Fluo_area_prop,Area_Sum,Average_Cell_Intensity,Average_Area,Label)) %>%
   distinct()
 
  }
@@ -243,10 +268,10 @@ Raw_data_cleaned <- lapply(filtered_list_cleaned_FINAL, Raw_data_clean_up_func)
 rbinded_list_raw_data  <- dplyr::bind_rows(Raw_data_cleaned)
 raw_data_for_export <- rbinded_list_raw_data %>% 
   relocate(Channel_Name,Well_ID,Label,Filtered_ROI,Timepoint, .before = Label) %>% ##Move Info Columns to beginning for readability
-  select(-c(X,Label_ID,ROI_Number)) ##Remove duplicate/unimportant columns
+  dplyr::select(-c(X,Label_ID,ROI_Number)) ##Remove duplicate/unimportant columns
 
 raw_data_for_export_mean_only <- raw_data_for_export %>%
-  select(-c(starts_with("Area")))
+  dplyr::select(-c(starts_with("Area")))
 
 write.csv(summary_stats_rbind , paste(exfolder, "/Results_Conc_Cleaned_No_Average.csv", sep = ""), row.names = FALSE) ##Save anotated data as .csv file
 
@@ -256,7 +281,7 @@ write.csv(raw_data_for_export , paste(exfolder, "/Raw_Data.csv", sep = ""), row.
 
 write.csv(raw_data_for_export_mean_only , paste(exfolder, "/Raw_Data_Mean_Only.csv", sep = ""), row.names = FALSE) ##For people who dont use R but want to plot average traces
 }
-
+                                  
 if(Microscope_Choice == "1") {
   
   exfolder <- tcltk::tk_choose.dir(default = "~/")
@@ -294,7 +319,8 @@ if(Microscope_Choice == "1") {
   Filter_iterate <- function(list_element) {
     active_dataframe <- as.data.frame(list_element)
     colnames(active_dataframe) <- sub(".*\\.", "", colnames(active_dataframe))
-    if(boolean_filter == TRUE && grepl(Channel_pattern,active_dataframe$Channel_Name) == FALSE){
+    active_dataframe_one_row <- active_dataframe[1,]
+    if(boolean_filter == TRUE && any(grepl(active_dataframe_one_row$Channel_Name,Channel_escape_pattern)) == FALSE){
       active_dataframe[ , grepl("Mean", names(active_dataframe))] <- lapply(active_dataframe[ , grepl("Mean", names(active_dataframe))], function(col) { ##For all rows but only columns containg "Mean", apply the following filters
         col[col > Global_Max_Mean] <- NA  # Set values larger than X to NA
         col[col < Global_Min_Mean] <- NA # Set values smaller than X to NA
@@ -303,7 +329,7 @@ if(Microscope_Choice == "1") {
         return(col)
       }
       ) ##Filter Mean columns
-      active_dataframe[ , grepl("Area", names(active_dataframe))] <- lapply(active_dataframe[ , grepl("Area", names(active_dataframe))], function(col) { ##For all rows but only columns containg "Mean", apply the following filters
+      active_dataframe[ , grepl("Area", names(active_dataframe))] <- lapply(active_dataframe[ , grepl("Area", names(active_dataframe))], function(col) { ##For all rows but only columns containg "Area", apply the following filters
         col[col > Global_Max_Area] <- NA  # Set values larger than X to NA
         col[col < Global_Min_Area] <- NA # Set values smaller than X to NA
         
@@ -312,20 +338,16 @@ if(Microscope_Choice == "1") {
       }) ##Filter Area columns
     }
     active_dataframe[active_dataframe == 0] <- NA
-    
     mean_cols <- grep("Mean", colnames(active_dataframe), value = TRUE)
-    active_dataframe <- active_dataframe %>%
-      mutate(Filtered_ROI = rowSums(across(all_of(mean_cols), ~ . != 0), na.rm = TRUE))
-    
     return(active_dataframe) 
   } ##Function to filter columns based on area and mean - Global values are on top of script
   
   filtered_list <- lapply(combined_list, Filter_iterate) ##apply filter to all channel dataframes
-  
+
   NA_clean_up <- function(list_element) {
     active_dataframe <- as.data.frame(list_element)
-    colnames(active_dataframe) <- sub(".*\\.", "", colnames(active_dataframe))
-    
+    active_dataframe_one_row <- active_dataframe[1,]
+  
     # Step 1: Identify suffixes based on pattern matching - All cells should have same suffixes so no point doubling or using intersect
     mean_cols <- grep("Mean", colnames(active_dataframe), value = TRUE)
     
@@ -341,11 +363,31 @@ if(Microscope_Choice == "1") {
       
       active_dataframe[na_indices, c(mean_col, area_col)] <- NA
     }
-    
+    if(Masking_Filter == TRUE && any(grepl(active_dataframe_one_row$Channel_Name, Masking_Filter_Pattern) == TRUE)){
+      na_positions <- is.na(active_dataframe) ## Get logical matrix of values which have been filtered out/ are NA
+      na_indices <- which(na_positions, arr.ind = T) ## convert into indices for data frames
+      assign("na_indices", na_indices, envir = .GlobalEnv) 
+    }
     return(active_dataframe)
   } ##Function to remove NA values from Mean if Area was removed and vice versa
   
   filtered_list_NA_cleaned <- lapply(filtered_list, NA_clean_up) ##apply NA clean to all channel dataframes
+  
+  Masking_filter <- function(list_element) {
+    active_dataframe <- as.data.frame(list_element)
+    active_dataframe_one_row <- active_dataframe[1,]
+    if(Masking_Filter == TRUE  && any(grepl(active_dataframe_one_row$Channel_Name,"Brightfield")) == FALSE){
+      active_dataframe[na_indices] <- NA
+      mean_cols <- grep("Mean", colnames(active_dataframe), value = TRUE)
+      active_dataframe <- active_dataframe %>%
+        mutate(Filtered_ROI = rowSums(across(all_of(mean_cols), ~ . != 0), na.rm = TRUE))
+      return(active_dataframe)
+    }else{
+      return(active_dataframe)
+    }
+  } ## Needs to be done as position of filter channel is not nessarily 1st in factor levels - will be dependent on alphebetical sorting
+  
+  filtered_list_NA_cleaned_Masking_filtered <- lapply(filtered_list_NA_cleaned, Masking_filter)
   
   no_dup_rows <- function(list_element) {
     testing_un_NA_unique <- list_element[!duplicated(list_element$Label_ID), ]
@@ -354,9 +396,7 @@ if(Microscope_Choice == "1") {
     return(testing_un_NA_unique_2)
   } ##Func to remove dup rows and nonsensical rows - i.e. If for loop went and measured an empty image etc.
   
-  filtered_list_cleaned_FINAL <- lapply(filtered_list_NA_cleaned, no_dup_rows) ##Apply above func to all channel dataframes
-  
-  testing <- filtered_list_cleaned_FINAL[[1]]
+  filtered_list_cleaned_FINAL <- lapply(filtered_list_NA_cleaned_Masking_filtered, no_dup_rows) ##Apply above func to all channel dataframes
   
   row_wise_mean_and_area_avg <- function(list_element) {
     list_element$Average_Cell_Intensity <- rowMeans(list_element[grep('^Mean', names(list_element))], na.rm = T) ##Take get an average of mean for each FOV
@@ -387,12 +427,12 @@ if(Microscope_Choice == "1") {
   
   dataframes_summary_stats <- lapply(filtered_list_cleaned_FINAL, row_wise_mean_and_area_avg)
   
-  testing <- dataframes_summary_stats[[1]]
+  testing <- dataframes_summary_stats[[2]]
   
   summary_stats_selected <- lapply(dataframes_summary_stats, function(df){
     read_table <- as.data.frame(df)
-    if(read_table[1,]$Channel_Name != "Brightfield"){ ##Brightfield will not have Filtered_ROI label as will not use ROI_Counter
-      df_summed <- subset(read_table, select = c('Well_ID', 'Label','Average_Cell_Intensity','Ar_mean','Ar_sum','Channel_Name', 'Timepoint','Filtered_ROI'))
+    if(read_table[1,]$Channel_Name != "Brightfield"){
+      df_summed <- subset(read_table, select = c('Well_ID', 'Label','Average_Cell_Intensity','Ar_mean','Ar_sum','Channel_Name','Timepoint','Filtered_ROI'))
     }else{
       df_summed <- subset(read_table, select = c('Well_ID', 'Label','Average_Cell_Intensity','Ar_mean','Ar_sum','Channel_Name','Timepoint'))
     }
@@ -406,19 +446,18 @@ if(Microscope_Choice == "1") {
   summary_stats_rbind <- summary_stats_rbind %>%
     mutate(Average_Area = Ar_mean,
            Area_Sum = Ar_sum) %>%
-    select(-c(Ar_mean,Ar_sum))
+    dplyr::select(-c(Ar_mean,Ar_sum))
   
   summary_stats_rbind_averaged <- summary_stats_rbind %>%
     mutate(Well_Label_Timepoint_Channel_Name = paste(Well_ID,Timepoint,Channel_Name, sep = "_")) %>%
     group_by(Well_Label_Timepoint_Channel_Name) %>%
-    mutate(Average_Cell_Number = mean(Filtered_ROI),
-           Average_Cell_Intensity = mean(Average_Cell_Intensity)) %>%
+    mutate( Average_Cell_Intensity_Well = mean(Average_Cell_Intensity, na.rm = T),
+            Average_Cell_Number = mean(Filtered_ROI, na.rm = T),
+           Average_Area_Well = mean(Average_Area, na.rm = T),
+           Total_Area_Well = sum(Area_Sum)) %>%
     ungroup() %>%
-    select(-c(Filtered_ROI,Average_Cell_Intensity,Well_Label_Timepoint_Channel_Name,Label)) %>%
+    dplyr::select(-c(Filtered_ROI,Average_Cell_Intensity,Well_Label_Timepoint_Channel_Name,Label,Average_Area,Area_Sum)) %>%
     distinct()
-  
-  
-  
   
   if(any(grepl("Brightfield", summary_stats_rbind$Channel_Name))==TRUE) {
     
@@ -428,7 +467,7 @@ if(Microscope_Choice == "1") {
         filter(Channel_Name == "Brightfield") %>%
         mutate(BF_Area = Area_Sum) %>%
         mutate(Well_Label = paste(Well_ID, Label)) %>%
-        select(BF_Area, Well_Label)
+        dplyr::select(BF_Area, Well_Label)
       
       summary_stats_rbind_non_bf <- summary_stats_rbind %>% ##Set non BF channels to Na
         mutate(Well_Label = paste(Well_ID, Label))
@@ -448,16 +487,16 @@ if(Microscope_Choice == "1") {
     
     summary_stats_rbind <- summary_stats_rbind %>%
       mutate(Fluo_area_prop = Area_Sum/BF_Area) %>%
-      select(-c(BF_Area))
+      dplyr::select(-c(BF_Area))
     
     summary_stats_rbind_averaged <- summary_stats_rbind %>%
       mutate(Well_Label_Timepoint_Channel_Name = paste(Well_ID,Timepoint,Channel_Name, sep = "_")) %>%
       group_by(Well_Label_Timepoint_Channel_Name) %>%
-      mutate(Mean_Filtered_ROI = mean(Filtered_ROI),
-             Mean_Average_Cell_Intensity = mean(Average_Cell_Intensity),
-             Mean_Fluo_area_prop = mean(Fluo_area_prop)) %>%
+      mutate(Mean_Filtered_ROI = mean(Filtered_ROI, na.rm = T),
+             Mean_Average_Cell_Intensity = mean(Average_Cell_Intensity, na.rm = T),
+             Mean_Fluo_area_prop = mean(Fluo_area_prop, na.rm = T)) %>%
       ungroup() %>%
-      select(-c(Filtered_ROI,Average_Cell_Intensity,Well_Label_Timepoint_Channel_Name, Fluo_area_prop,Area_Sum,Average_Cell_Intensity,Average_Area,Label)) %>%
+      dplyr::select(-c(Filtered_ROI,Well_Label_Timepoint_Channel_Name, Fluo_area_prop,Area_Sum,Average_Cell_Intensity,Average_Area,Label)) %>%
       distinct()
     
   }
@@ -477,10 +516,10 @@ if(Microscope_Choice == "1") {
   rbinded_list_raw_data  <- dplyr::bind_rows(Raw_data_cleaned)
   raw_data_for_export <- rbinded_list_raw_data %>% 
     relocate(Channel_Name,Well_ID,Label,Filtered_ROI,Timepoint, .before = Label) %>% ##Move Info Columns to beginning for readability
-    select(-c(X,Label_ID,ROI_Number)) ##Remove duplicate/unimportant columns
+    dplyr::select(-c(X,Label_ID,ROI_Number)) ##Remove duplicate/unimportant columns
   
   raw_data_for_export_mean_only <- raw_data_for_export %>%
-    select(-c(starts_with("Area")))
+    dplyr::select(-c(starts_with("Area")))
   
   write.csv(summary_stats_rbind , paste(exfolder, "/Results_Conc_Cleaned_No_Average.csv", sep = ""), row.names = FALSE) ##Save anotated data as .csv file
   
@@ -490,3 +529,12 @@ if(Microscope_Choice == "1") {
   
   write.csv(raw_data_for_export_mean_only , paste(exfolder, "/Raw_Data_Mean_Only.csv", sep = ""), row.names = FALSE) ##For people who dont use R but want to plot average traces
 }
+
+if(boolean_filter == TRUE){
+  Filter_Settings <- data.frame(Maximum_Area = Global_Max_Area, Minimum_Area = Global_Min_Area, Maximum_Intensity = Global_Max_Mean, Minimum_Intensity = Global_Min_Mean, Escaped_Channels = Channel_escape_pattern)
+  if(Masking_Filter == TRUE){
+    Filter_Settings <- data.frame(Maximum_Area = Global_Max_Area, Minimum_Area = Global_Min_Area, Maximum_Intensity = Global_Max_Mean, Minimum_Intensity = Global_Min_Mean, Escaped_Channels = paste0(Channel_escape_pattern, collapse = ","), Masking_Filter_Channel = Masking_Filter_Pattern)
+  }
+  write.csv(Filter_Settings , paste(exfolder, "/Filter_Settings.csv", sep = ""), row.names = FALSE) ##Save anotated data as .csv file
+  
+} ## In case someone forgot to change the setting
