@@ -17,11 +17,11 @@ invisible(lapply(packages, library, character.only = TRUE))
 ## C H A N G E    S E T T I N G S   H E R E   B E F O R E   R U N N I N G 
 ## - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-boolean_filter <- TRUE ## PLEASE SET TO FALSE IF YOU DO NOT WISH TO APPLY ANY FILTERS
+boolean_filter <- FALSE ## PLEASE SET TO FALSE IF YOU DO NOT WISH TO APPLY ANY FILTERS
 
 Masking_Filter <- TRUE ## ONLY WORKS IF YOU USED A CHANNEL FILTER DURING IMAGEJ ANALYSIS!!!!! IF SET TO TRUE, IF BOOLEAN_FILTER REMOVES A CELL IN ONE CHANNEL - IT WILL REMOVE THE SAME CELL FROM ALL OTHER CHANNELS
 
-Masking_Filter_Pattern <- c("GFP") ## NAME OF THE CHANNEL YOU USED AS A FILTER - I GUESS IN THEORY YOU COULD CHANGE THE FILTERING CHANNEL EVEN IF YOU DIDNT STARDIST ACCORDING TO THIS
+Masking_Filter_Pattern <- c("FITC") ## NAME OF THE CHANNEL YOU USED AS A FILTER - I GUESS IN THEORY YOU COULD CHANGE THE FILTERING CHANNEL EVEN IF YOU DIDNT STARDIST ACCORDING TO THIS
 
 Global_Max_Mean <- 10000 ## MAX CELL INTENSITY
 
@@ -79,8 +79,9 @@ combined_list <- lapply(split_by_prefix, iterate_rbind) ##For each Channel Group
 
 Filter_iterate <- function(list_element) {
   active_dataframe <- as.data.frame(list_element)
+  active_dataframe_one_row <- active_dataframe[1,]
   colnames(active_dataframe) <- sub(".*\\.", "", colnames(active_dataframe))
-  if(boolean_filter == TRUE && any(grepl(Channel_escape_pattern,active_dataframe$Channel_Name)) == FALSE){
+  if(boolean_filter == TRUE && any(grepl(active_dataframe_one_row$Channel_Name, Channel_escape_pattern)) == FALSE){
   active_dataframe[ , grepl("Mean", names(active_dataframe))] <- lapply(active_dataframe[ , grepl("Mean", names(active_dataframe))], function(col) { ##For all rows but only columns containg "Mean", apply the following filters
       col[col > Global_Max_Mean] <- NA  # Set values larger than X to NA
       col[col < Global_Min_Mean] <- NA # Set values smaller than X to NA
@@ -100,6 +101,9 @@ Filter_iterate <- function(list_element) {
   
   active_dataframe[active_dataframe == 0] <- NA
   mean_cols <- grep("Mean", colnames(active_dataframe), value = TRUE)
+  active_dataframe <- active_dataframe %>%
+    mutate(Filtered_ROI = rowSums(across(all_of(mean_cols), ~ . != 0), na.rm = TRUE))
+  
   return(active_dataframe) 
 } ##Function to filter columns based on area and mean - Global values are on top of script
 
@@ -339,6 +343,9 @@ if(Microscope_Choice == "1") {
     }
     active_dataframe[active_dataframe == 0] <- NA
     mean_cols <- grep("Mean", colnames(active_dataframe), value = TRUE)
+    active_dataframe <- active_dataframe %>%
+      mutate(Filtered_ROI = rowSums(across(all_of(mean_cols), ~ . != 0), na.rm = TRUE))
+    
     return(active_dataframe) 
   } ##Function to filter columns based on area and mean - Global values are on top of script
   
@@ -426,8 +433,6 @@ if(Microscope_Choice == "1") {
   } ##Here also adding Well_ID variable
   
   dataframes_summary_stats <- lapply(filtered_list_cleaned_FINAL, row_wise_mean_and_area_avg)
-  
-  testing <- dataframes_summary_stats[[2]]
   
   summary_stats_selected <- lapply(dataframes_summary_stats, function(df){
     read_table <- as.data.frame(df)
@@ -539,3 +544,4 @@ if(boolean_filter == TRUE){
   
 } ## In case someone forgot to change the setting
 ##
+
