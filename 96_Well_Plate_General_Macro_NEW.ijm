@@ -101,6 +101,17 @@ Dialog.create("Use Software Binning?");
 	Dialog.show();
 	binning_test = Dialog.getCheckbox();
 	
+	
+Dialog.create("Use BaSiC Background Correction?");
+	Dialog.addMessage("Would you like to use BaSiC to correct for uneven illumination?");
+	Dialog.addMessage("WARNING: BaSiC correction can only be used if you have a sufficient number of images to compute a shading matrix");
+	Dialog.addMessage("If your images are highly correlated, (High magnification + long timelapse), BaSiC may treat real difference in fluorescence as background");
+	Dialog.addMessage("Lastly, this will greatly increase time taken for analysis");
+	Dialog.addCheckbox("Use BaSiC Background Correction?", true);
+	Dialog.show();
+	basic_test = Dialog.getCheckbox();
+	
+	
 if (binning_test == true) {
 	Dialog.create("What is your desired bin size?");
 	Dialog.addMessage("2 = 4* smaller, 4 = 16* smaller etc.");
@@ -374,18 +385,23 @@ selectImage("expt");
 close();
 selectImage("Combined Stacks");
 rename("expt");
-
+}
 
 if (channel_name_string != "Brightfield") {
+if(basic_test == true){
 run("Collect Garbage");
 run("Slice Keeper", "first=1 last="+FOV_number*timepoint_number*well_number+" increment="+(FOV_number*timepoint_number-1)+""); //Ionas idea, make a subset of the stack to compute the BASIC shading profile on, use on full stack after compute - saves run time. Use a smaller increment to timepoint so as to not use only the first frame from each FOV
 selectImage("expt kept stack");
 run("BaSiC ", "processing_stack=[expt kept stack] flat-field=None dark-field=None shading_estimation=[Estimate shading profiles] shading_model=[Estimate flat-field only (ignore dark-field)] setting_regularisationparametes=Manual temporal_drift=Ignore correction_options=[Compute shading only] lambda_flat=4 lambda_dark=0.50"); //Compute shading profile based on the stack subset, you will use this to generate the flat field which will then be ran on the entire experiment stack
 selectImage("Flat-field:expt kept stack");
-run("BaSiC ", "processing_stack=[expt] flat-field=[Flat-field:expt kept stack] dark-field=None shading_estimation=[Skip estimation and use predefined shading profiles] shading_model=[Estimate flat-field only (ignore dark-field)] setting_regularisationparametes=Automatic temporal_drift=[Replace with zero] correction_options=[Compute shading and correct images] lambda_flat=0.50 lambda_dark=0.50"); //Compute shading profile for entire stack
+run("BaSiC ", "processing_stack=[expt] flat-field=[Flat-field:expt kept stack] dark-field=None shading_estimation=[Skip estimation and use predefined shading profiles] shading_model=[Estimate flat-field only (ignore dark-field)] setting_regularisationparametes=Automatic temporal_drift=[Replace with temporal mean] correction_options=[Compute shading and correct images] lambda_flat=0.50 lambda_dark=0.50"); //Compute shading profile for entire stack
 selectImage("Corrected:expt");
-} 
+}else {
+selectImage("expt");
+rename("Corrected:expt");
 }
+} 
+
 
 if(timepoint_check == true) {
 	
@@ -556,6 +572,8 @@ for (sdfiles = 0; sdfiles < lengthOf(sdfilelist); sdfiles++) {
     File.openSequence(exfolder_updated + File.separator +  channel_name_string + File.separator + "Individual_Well" + File.separator + "Well_Number_1"+ File.separator + "FOV_Number_1"+"","step=1");
  }
  if (mask_check == false && k==0){
+ 	selectImage("StarDist_Output");
+ 	run("Fire");
    	Dialog.createNonBlocking("Fluorescent Mask Detected");
 	Dialog.addMessage("Using a Fluorescent channel as mask, please choose values for StarDist:");
 	Dialog.addNumber("Probability/Score Threshold (0.00 - 1.00)", 0.6);
@@ -739,25 +757,7 @@ for (meta_loop = 0; meta_loop < total_image_number; meta_loop++) { //For loop se
 	}
     }
 close("TEXT");    
-    
- if (channel_name_string != "Brightfield") {  //Same as above but with ROI count data, doing one first pass for 0th row because i couldnt figure out how to write neatly - wasted like 1 hour arrrgh i hate it when i cant find a nice solution but whatever this will do i guess
-    Table.create("ROICOUNTER");
-	Table.setColumn("ROI_Count", roi_count_empty_array);
-	for (firstpoint = 0; firstpoint < real_timepoint_number; firstpoint++) {
-    ROI_count_setting_var = Table.get("ROI_Count", 0);
-    setResult("ROI_Number", firstpoint, ROI_count_setting_var);
-    }
-    for (bruh = 1; bruh < FOV_number; bruh++) {
-    selectWindow("ROICOUNTER");
-    ROI_count_setting_var = Table.get("ROI_Count", bruh);
-    for (timepoint_loop = 0; timepoint_loop < real_timepoint_number+1; timepoint_loop++) {
-    selectWindow("Results");
-    first_pass_index = bruh*real_timepoint_number;
-    final_index_num = first_pass_index+timepoint_loop;
-    setResult("ROI_Number", final_index_num, ROI_count_setting_var);
-    }
-}
- }
+
 updateResults();
 selectWindow("Results");
 if(Channel_number > 1){
@@ -770,13 +770,11 @@ saveAs("Results", exfolder_updated + File.separator + "Well_Averages" + File.sep
 }
  close("Results");
  
- 
-
 close("*");
 }
 
 
-if(Channel_number > 1){ //detelting temp files created during macro so as to not infalte experiment size for storage
+if(Channel_number > 1){ //detelting temp files created during macro so as to not inflate experiment size for storage
 Channel_folder_file_list = getFileList(exfolder_updated + File.separator + channel_name_string);
 temp_files_to_delete =  ImageFilesOnlyArray(Channel_folder_file_list);
 for (tempfile = 0; tempfile < lengthOf(temp_files_to_delete); tempfile++) {
