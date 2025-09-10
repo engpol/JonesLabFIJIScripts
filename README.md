@@ -3,7 +3,7 @@ A place to store and update any and all macros used by the Jones Lab in microsco
 
 By default, macros will run in batch mode, meaning ImageJ will not open any images it is doing operations on. Don't worry they are still working. If for some reason, however, you want to see the process happen you'll have to turn batch mode off. To do so, you'll have to change setBatchMode (found towards the top of all macros) to false
 
-You will need some additional ImageJ plugins to run these macros. To download them, open up Fiji/ImageJ then click "Help" -> "Update" -> "Manage Update Sites" -> tick the plugins you want to download -> "Apply and Close". You will need to restart Fiji/ImageJ for the plugins to load. The plugins you need are as follows:
+You will need some additional ImageJ plugins to run some of these macros. To download them, open up Fiji/ImageJ then click "Help" -> "Update" -> "Manage Update Sites" -> tick the plugins you want to download -> "Apply and Close". You will need to restart Fiji/ImageJ for the plugins to load. The plugins you need are as follows:
 
 1. BaSiC
 2. CSBDeep
@@ -69,9 +69,9 @@ Then press ok.
 
 Once the Macro is finished running, it will save your results to a CSV file in every experimental folder titled "Results".
 
-<strong><h2>MESNA Macro</strong></h2>
+<strong><h2>MESNA_Macro_V2</strong></h2>
 
-This macro is for analysing MESNA experiments (i.e. where you want to see difference in fluorescence intensity of cell containing regions before and after administration of some condition. The only key difference here is to select the order of channels. This macro again expects a single image stack. I've had quite a lot of issue with memory leak writing this macro, which I think is caused by running BaSiC on an interleaved stack possibly? I don't what else could have caused it. 
+This macro is for analysing MESNA experiments (i.e. where you want to see difference in fluorescence intensity of cell containing regions before and after administration of some condition. The script parameters will also ask to select the order of channels (Fluorescence -> Brightfield, or Brightfield -> Fluorescence). Open the first few images of your experiment and check if you are not sure. For this MACRO to work, you will also need to download [ImageMagick](https://imagemagick.org/script/download.php), and unzip it somewhere on your computer. When prompted, please find the location of "magick.exe" from your ImageMagick installation. 
 
 <strong><h2>Live Cell Imaging Macro</strong></h2>
 
@@ -89,7 +89,7 @@ Press Run.
 
 Once it has finished running, in the experiment folder all the individual FOVs will be found in the "Individual_FOV" folder, ROIs for the segmented neurons will be in the "StarDistROI" folder, and the fluorescence intensity time series values for the different neurons will be in the "Results" folder. 
 
-<b>IMPORTANT - PLEASE READ</b>
+<b>IMPORTANT For 96 Well General Macro - PLEASE READ</b>
 
 1. The Results are saved in seperate CSV files for each FOV in the Results folder. You can very easily combine them into 1 using not very much R/Python, however combining them in ImageJ would require some additional Jython code which would have to be a seperate Macro. Will probably add this in the future if anyone else decides to use this code and wants to import Results dircetly into GraphPad Prism, however please be aware, as doing this manually would be hell and could lead you to accidently deleting data.
 
