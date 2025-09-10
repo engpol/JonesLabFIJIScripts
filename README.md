@@ -55,7 +55,7 @@ In your experiment folder, you should find a series of files which are nicely st
 
 That should be everything! Please let me know if you would like me to implement any further changes to the Macro, you have any problems following this guide along!
 
-<strong><h2>Receptor_Expression Macro</strong></h2>
+<strong><h2>Receptor_Expression_Macro_V2</strong></h2>
 
 Open the macro within ImageJ/Fiji.
 
@@ -69,9 +69,11 @@ Then press ok.
 
 Once the Macro is finished running, it will save your results to a CSV file in every experimental folder titled "Results".
 
+As with the MESNA macro below, you will need an ImageMagick installation if analysing EVOS images. Please follow the link below to download and unzip the ImageMagick application somewhere on your computer. 
+
 <strong><h2>MESNA_Macro_V2</strong></h2>
 
-This macro is for analysing MESNA experiments (i.e. where you want to see difference in fluorescence intensity of cell containing regions before and after administration of some condition. The script parameters will also ask to select the order of channels (Fluorescence -> Brightfield, or Brightfield -> Fluorescence). Open the first few images of your experiment and check if you are not sure. For this MACRO to work, you will also need to download [ImageMagick](https://imagemagick.org/script/download.php), and unzip it somewhere on your computer. When prompted, please find the location of "magick.exe" from your ImageMagick installation. 
+This macro is for analysing MESNA experiments (i.e. where you want to see difference in fluorescence intensity of cell containing regions before and after administration of some condition. The script parameters will also ask to select the order of channels (Fluorescence -> Brightfield, or Brightfield -> Fluorescence). Open the first few images of your experiment and check if you are not sure. For this MACRO to work on EVOS images, you will also need to download [ImageMagick](https://imagemagick.org/script/download.php), and unzip it somewhere on your computer. When prompted, please find the location of "magick.exe" from your ImageMagick installation. 
 
 <strong><h2>Live Cell Imaging Macro</strong></h2>
 
