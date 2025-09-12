@@ -189,7 +189,7 @@ rename("FFC_Image");
 print("Performing BASIC - Background Correction...");
 run("BaSiC ", "processing_stack=Fluorescent_Stack flat-field=FFC_Image dark-field=None shading_estimation=[Skip estimation and use predefined shading profiles] shading_model=[Estimate flat-field only (ignore dark-field)] setting_regularisationparametes=Automatic temporal_drift=[Replace with zero] correction_options=[Compute shading and correct images] lambda_flat=0.50 lambda_dark=0.50");
 }else {
-if(num_images > 200){ //If number of images is large, run BaSiC only on subset, if it is short, just run on entire length of images
+if(num_Images > 200){ //If number of images is large, run BaSiC only on subset, if it is short, just run on entire length of images
 	print("Image Number > 200 - Running BASIC on Subset of Images!");
 	print("Performing BASIC - Background Correction...");
 	selectImage("Fluorescent_Stack");
